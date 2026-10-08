@@ -2,9 +2,9 @@ use super::CellState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Cell {
-    is_mine: bool,
-    adjacent_mines: u8,
-    state: CellState,
+    pub(super) is_mine: bool,
+    pub(super) adjacent_mines: u8,
+    pub(super) state: CellState,
 }
 
 impl Cell {
@@ -30,78 +30,56 @@ impl Cell {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use CellState::{Flagged, Hidden, Questioned, Revealed};
 
-    #[test]
-    fn cycle_mark_ignores_revealed() {
-        let mut cell = Cell {
-            state: CellState::Revealed,
+    // --- helpers ---
+
+    fn cell_in(state: CellState) -> Cell {
+        Cell {
+            state,
             ..Default::default()
-        };
-        cell.cycle_mark();
-        assert_eq!(cell.state, CellState::Revealed);
-    }
-
-    #[test]
-    fn cycle_mark_changes_hidden_to_flagged() {
-        let mut cell = Cell {
-            state: CellState::Hidden,
-            ..Default::default()
-        };
-        cell.cycle_mark();
-        assert_eq!(cell.state, CellState::Flagged);
-    }
-
-    #[test]
-    fn cycle_mark_changes_flagged_to_questioned() {
-        let mut cell = Cell {
-            state: CellState::Flagged,
-            ..Default::default()
-        };
-        cell.cycle_mark();
-        assert_eq!(cell.state, CellState::Questioned);
-    }
-
-    #[test]
-    fn cycle_mark_changes_questioned_to_hidden() {
-        let mut cell = Cell {
-            state: CellState::Questioned,
-            ..Default::default()
-        };
-        cell.cycle_mark();
-        assert_eq!(cell.state, CellState::Hidden);
-    }
-
-    #[test]
-    fn reveal_ignores_flagged_cell() {
-        let mut cell = Cell {
-            state: CellState::Flagged,
-            ..Default::default()
-        };
-        cell.reveal();
-        assert_eq!(cell.state, CellState::Flagged);
-    }
-
-    #[test]
-    fn reveal_reveals_non_flagged_cell() {
-        for state in [
-            CellState::Hidden,
-            CellState::Questioned,
-            CellState::Revealed,
-        ] {
-            let mut cell = Cell {
-                state,
-                ..Default::default()
-            };
-            cell.reveal();
-            assert_eq!(cell.state, CellState::Revealed);
         }
     }
 
+    // --- default ---
+
     #[test]
-    fn cell_default_state_is_hidden() {
+    fn default_cell_is_hidden_mine_free_and_zero_count() {
         let cell = Cell::default();
         assert!(!cell.is_mine);
         assert_eq!(cell.adjacent_mines, 0);
-        assert_eq!(cell.state, CellState::Hidden);
+        assert_eq!(cell.state, Hidden);
+    }
+
+    // --- cycle_mark ---
+
+    #[test]
+    fn cycle_mark_goes_hidden_flagged_questioned_hidden_and_ignores_revealed() {
+        for (from, to) in [
+            (Hidden, Flagged),
+            (Flagged, Questioned),
+            (Questioned, Hidden),
+            (Revealed, Revealed),
+        ] {
+            let mut cell = cell_in(from);
+            cell.cycle_mark();
+            assert_eq!(cell.state, to, "cycle_mark from {from:?}");
+        }
+    }
+
+    // --- reveal ---
+
+    #[test]
+    fn reveal_opens_everything_except_flagged() {
+        for (from, to) in [
+            (Hidden, Revealed),
+            (Questioned, Revealed),
+            (Revealed, Revealed),
+            (Flagged, Flagged),
+        ] {
+            let mut cell = cell_in(from);
+            cell.reveal();
+            assert_eq!(cell.state, to, "reveal from {from:?}");
+        }
     }
 }

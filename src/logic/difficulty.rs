@@ -34,40 +34,38 @@ impl Difficulty {
 mod tests {
     use super::*;
 
-    #[test]
-    fn beginner_geometry_is_correct() {
-        let difficulty = Difficulty::Beginner;
-        let properties = difficulty.board_properties();
-        assert_eq!(properties.rows, 9);
-        assert_eq!(properties.cols, 9);
-        assert_eq!(properties.mines, 10);
+    // --- helpers ---
+
+    const ALL: [Difficulty; 3] = [Difficulty::Beginner, Difficulty::Intermediate, Difficulty::Expert];
+
+    fn props(rows: usize, cols: usize, mines: usize) -> BoardProperties {
+        BoardProperties { rows, cols, mines }
     }
+
+    // --- board_properties ---
+
     #[test]
-    fn intermediate_geometry_is_correct() {
-        let difficulty = Difficulty::Intermediate;
-        let properties = difficulty.board_properties();
-        assert_eq!(properties.rows, 16);
-        assert_eq!(properties.cols, 16);
-        assert_eq!(properties.mines, 40);
-    }
-    #[test]
-    fn expert_geometry_is_correct() {
-        let difficulty = Difficulty::Expert;
-        let properties = difficulty.board_properties();
-        assert_eq!(properties.rows, 16);
-        assert_eq!(properties.cols, 30);
-        assert_eq!(properties.mines, 99);
+    fn default_is_beginner() {
+        assert_eq!(Difficulty::default(), Difficulty::Beginner);
     }
 
     #[test]
-    fn there_are_less_mines_than_cells() {
-        for difficulty in [
-            Difficulty::Beginner,
-            Difficulty::Intermediate,
-            Difficulty::Expert,
-        ] {
-            let properties = difficulty.board_properties();
-            assert!(properties.rows * properties.cols > properties.mines);
+    fn board_properties_match_classic_minesweeper() {
+        let cases = [
+            (Difficulty::Beginner, props(9, 9, 10)),
+            (Difficulty::Intermediate, props(16, 16, 40)),
+            (Difficulty::Expert, props(16, 30, 99)),
+        ];
+        for (difficulty, expected) in cases {
+            assert_eq!(difficulty.board_properties(), expected, "{difficulty:?}");
+        }
+    }
+
+    #[test]
+    fn every_difficulty_has_fewer_mines_than_cells() {
+        for difficulty in ALL {
+            let BoardProperties { rows, cols, mines } = difficulty.board_properties();
+            assert!(mines < rows * cols, "{difficulty:?}: {mines} mines on {rows}x{cols}");
         }
     }
 }

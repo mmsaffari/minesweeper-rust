@@ -13,7 +13,6 @@ mod tests {
 
     #[test]
     fn default_is_hidden() {
-        let cell = CellState::default();
-        assert_eq!(cell, CellState::Hidden);
+        assert_eq!(CellState::default(), CellState::Hidden);
     }
 }

@@ -8,7 +8,7 @@ use super::Position;
 /// Panics (with a message containing "room") unless `mines < rows * cols`.
 pub fn generate_mines(properties: BoardProperties, safe: Position, rng: &mut impl Rng) -> Vec<Position> {
     assert!(
-        properties.mines >= properties.rows * properties.cols,
+        properties.mines < properties.rows * properties.cols,
         "There is not enough room for {} on a {}x{} board.",
         properties.mines,
         properties.rows,

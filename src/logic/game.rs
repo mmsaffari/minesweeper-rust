@@ -18,20 +18,16 @@ pub struct Game {
 impl Game {
     /// A new game with a truly random generator.
     pub fn new(difficulty: Difficulty) -> Self {
-        let properties = difficulty.board_properties();
-        let rng = rand::make_rng();
-        Self {
-            board: Board::new(properties),
-            status: GameStatus::default(),
-            rng,
-            properties,
-        }
+        Self::from_rng(difficulty, rand::make_rng())
     }
 
     /// A new game whose mine layout is repeatable: same seed, same layout.
     pub fn with_seed(difficulty: Difficulty, seed: u64) -> Self {
+        Self::from_rng(difficulty, StdRng::seed_from_u64(seed))
+    }
+
+    fn from_rng(difficulty: Difficulty, rng: StdRng) -> Self {
         let properties = difficulty.board_properties();
-        let rng = StdRng::seed_from_u64(seed);
         Self {
             board: Board::new(properties),
             status: GameStatus::default(),
@@ -81,20 +77,10 @@ impl Game {
         }
 
         if cell.adjacent_mines == 0 {
-            let neighbours = self.board.neighbours(pos);
-            for n_pos in neighbours {
-                self.reveal(n_pos);
-            }
+            self.flood_reveal(pos);
         }
 
-        if self
-            .board()
-            .cells
-            .iter()
-            .flatten()
-            .filter(|c| c.state != CellState::Revealed)
-            .all(|c| c.is_mine)
-        {
+        if self.all_safe_cells_revealed() {
             self.status = GameStatus::Won;
         }
     }
@@ -110,6 +96,33 @@ impl Game {
             }
             GameStatus::Won | GameStatus::Lost => {}
         };
+    }
+
+    /// Opens everything reachable from `start` (an already revealed 0) through other 0s,
+    /// stopping at numbers. It never meets a mine: every neighbour of a 0 is safe by definition.
+    fn flood_reveal(&mut self, start: Position) {
+        let mut to_visit = self.board.neighbours(start);
+        while let Some(pos) = to_visit.pop() {
+            let Some(cell) = self.board.cell_mut(pos) else {
+                continue;
+            };
+            match cell.state {
+                CellState::Revealed | CellState::Flagged => continue,
+                CellState::Hidden | CellState::Questioned => {}
+            }
+            cell.reveal();
+            if cell.adjacent_mines == 0 {
+                to_visit.extend(self.board.neighbours(pos));
+            }
+        }
+    }
+
+    fn all_safe_cells_revealed(&self) -> bool {
+        self.board
+            .cells
+            .iter()
+            .flatten()
+            .all(|cell| cell.is_mine || cell.state == CellState::Revealed)
     }
 }
 

@@ -28,6 +28,10 @@ impl Board {
         self.cells.get(pos.row)?.get(pos.col)
     }
 
+    pub fn cell_mut(&mut self, pos: Position) -> Option<&mut Cell> {
+        self.cells.get_mut(pos.row)?.get_mut(pos.col)
+    }
+
     pub fn neighbours(&self, pos: Position) -> Vec<Position> {
         let mut result: Vec<Position> = Vec::with_capacity(8);
         for i in [-1, 0, 1] {

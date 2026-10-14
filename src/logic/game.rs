@@ -108,11 +108,12 @@ impl Game {
             };
             match cell.state {
                 CellState::Revealed | CellState::Flagged => continue,
-                CellState::Hidden | CellState::Questioned => {}
-            }
-            cell.reveal();
-            if cell.adjacent_mines == 0 {
-                to_visit.extend(self.board.neighbours(pos));
+                CellState::Hidden | CellState::Questioned => {
+                    cell.reveal();
+                    if cell.adjacent_mines == 0 {
+                        to_visit.extend(self.board.neighbours(pos));
+                    }
+                }
             }
         }
     }

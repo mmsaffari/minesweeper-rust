@@ -47,22 +47,19 @@ impl Game {
 
     /// Left click.
     pub fn reveal(&mut self, pos: Position) {
-        let Some(cell) = self.board().cell(pos) else {
+        let Some(cell) = self.board.cell(pos) else {
             return;
         };
 
-        if self.status() == GameStatus::Lost || self.status() == GameStatus::Won {
-            return;
-        }
-
-        if cell.state == CellState::Flagged || cell.state == CellState::Revealed {
-            return;
-        }
-
-        if self.status() == GameStatus::Ready {
-            let mines = generate_mines(self.properties, pos, &mut self.rng);
-            self.board.place_mines(&mines);
-            self.status = GameStatus::Playing;
+        match (self.status, cell.state) {
+            (GameStatus::Won | GameStatus::Lost, _) => return,
+            (_, CellState::Flagged | CellState::Revealed) => return,
+            (GameStatus::Ready, CellState::Hidden | CellState::Questioned) => {
+                let mines = generate_mines(self.properties, pos, &mut self.rng);
+                self.board.place_mines(&mines);
+                self.status = GameStatus::Playing;
+            }
+            (GameStatus::Playing, CellState::Hidden | CellState::Questioned) => {}
         }
 
         let Some(cell) = self.board.cell_mut(pos) else {

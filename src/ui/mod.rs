@@ -50,7 +50,8 @@ pub use header_layout::HeaderLayout;
 pub use header_view::draw_header;
 pub use hint_view::draw_hint;
 pub use input::{
-    any_button_down, any_button_pressed, face_clicked, handle_mouse, left_pressed, left_released, mouse, typed_chars,
+    any_button_down, any_button_pressed, copy_shortcut_held, face_clicked, handle_mouse, left_pressed, left_released,
+    mouse, typed_chars,
 };
 pub use keyboard::keyboard_command;
 pub use led_digits::led_digits;

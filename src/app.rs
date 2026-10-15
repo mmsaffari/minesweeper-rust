@@ -12,8 +12,9 @@ use crate::solver::{Hint, View, find_hint};
 use crate::ui::{
     AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, DialogButton, Face, Fonts, HeaderLayout, Menu,
     MenuClick, MenuLayout, NumberDialog, NumberDialogLayout, Press, Toast, any_button_down, any_button_pressed,
-    draw_about, draw_board, draw_header, draw_hint, draw_menu, draw_number_dialog, draw_toast, face_clicked,
-    handle_mouse, keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme, typed_chars, window_size,
+    copy_shortcut_held, draw_about, draw_board, draw_header, draw_hint, draw_menu, draw_number_dialog, draw_toast,
+    face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme,
+    typed_chars, window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -124,9 +125,7 @@ impl App {
         typed_chars();
 
         // The effects `apply` can only ask for: they need the real window and clock.
-        if let Some(text) = self.clipboard_request.take() {
-            clipboard_set(&text);
-        }
+        self.write_clipboard_when_free();
         if let Some(toast) = &mut self.toast {
             toast.start(get_time());
         }
@@ -193,6 +192,21 @@ impl App {
                 None
             }
             None => None,
+        }
+    }
+
+    /// Puts the requested text on the clipboard, but only once Ctrl+C is no longer held.
+    ///
+    /// macroquad has a built-in UI (`root_ui`) that this game doesn't use. At the start of
+    /// every frame it still reads the keys, and in every frame where Ctrl+C is down it copies
+    /// *its* text selection, which is always empty, to the clipboard. Written while the
+    /// shortcut is still held, our text would be overwritten with "" a frame later.
+    fn write_clipboard_when_free(&mut self) {
+        if copy_shortcut_held() {
+            return; // keep the request; try again next frame
+        }
+        if let Some(text) = self.clipboard_request.take() {
+            clipboard_set(&text);
         }
     }
 

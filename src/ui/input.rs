@@ -1,6 +1,6 @@
 use macroquad::input::{
-    MouseButton, get_char_pressed, is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released,
-    mouse_position,
+    KeyCode, MouseButton, get_char_pressed, is_key_down, is_key_pressed, is_mouse_button_down, is_mouse_button_pressed,
+    is_mouse_button_released, mouse_position,
 };
 use macroquad::math::Vec2;
 
@@ -50,6 +50,12 @@ pub fn left_released() -> bool {
     is_mouse_button_released(MouseButton::Left)
 }
 
+/// Ctrl+C is being pressed or held right now (the same check macroquad's built-in UI uses
+/// before it writes the clipboard; see `App::write_clipboard_when_free`).
+pub fn copy_shortcut_held() -> bool {
+    let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+    ctrl && (is_key_down(KeyCode::C) || is_key_pressed(KeyCode::C))
+}
 /// The characters typed since the last call. macroquad keeps them in a queue that only
 /// empties when read, so the app reads it every frame: otherwise everything typed while
 /// no text field is open would pour into the next one.

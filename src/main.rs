@@ -1,3 +1,7 @@
+// In release builds on Windows, start as a window app, without a console window behind it.
+// Debug builds keep the console, so `eprintln!` messages stay visible while developing.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod logic;
 mod scores;

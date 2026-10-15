@@ -1,0 +1,48 @@
+# Builds the Windows game and publishes it as a GitHub Release.
+# Runs only when a version tag is pushed, e.g.:
+#   git tag v1.0.0
+#   git push origin v1.0.0
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Creating a release needs write access to the repository's contents.
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Build and publish (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Never publish something that fails the tests.
+      - run: cargo test --locked
+
+      # `--locked`: build with exactly the dependency versions in Cargo.lock.
+      - run: cargo build --release --locked
+
+      # The fonts are compiled into the .exe; their licenses (SIL OFL) must be shipped with it.
+      - name: Package
+        shell: pwsh
+        run: |
+          $dir = "minesweeper-${{ github.ref_name }}-windows"
+          New-Item -ItemType Directory -Path "$dir/licenses" | Out-Null
+          Copy-Item target/release/minesweeper.exe $dir/
+          Copy-Item assets/fonts/*LICENSE*.txt "$dir/licenses/"
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "minesweeper-${{ github.ref_name }}-windows.zip" --title "Minesweeper ${{ github.ref_name }}" --generate-notes

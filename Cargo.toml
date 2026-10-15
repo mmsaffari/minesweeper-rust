@@ -9,3 +9,9 @@ macroquad = "0.4.16"
 rand = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+
+# `cargo build --release`: slower to compile, but a smaller and faster executable.
+[profile.release]
+lto = true          # optimise across all crates together, not one crate at a time
+codegen-units = 1   # one compilation unit: slower build, better optimisation
+strip = true        # leave debug symbols out of the executable

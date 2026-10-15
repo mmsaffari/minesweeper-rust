@@ -1,8 +1,12 @@
+use std::path::PathBuf;
+use std::time::Instant;
+
 use macroquad::input::{KeyCode, is_key_pressed};
 use macroquad::math::Vec2;
 use macroquad::prelude::clear_background;
 
-use crate::logic::{Difficulty, Game};
+use crate::logic::{Difficulty, Game, GameStatus};
+use crate::scores::{self, BestTimes};
 use crate::ui::{
     BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick, MenuLayout, any_button_down,
     draw_board, draw_header, draw_menu, face_clicked, handle_mouse, keyboard_command, left_pressed, mouse,
@@ -22,10 +26,15 @@ pub struct App {
     /// The current mouse gesture started on the menu (or closed it), so until every button
     /// is up again, nothing may happen on the board or the face.
     menu_owns_mouse: bool,
+    best_times: BestTimes,
+    /// Where to save new records; `None` in tests (and on a system without a home folder).
+    best_times_path: Option<PathBuf>,
+    /// This game's win has already been checked for a record (it's won for many frames).
+    win_recorded: bool,
 }
 
 impl App {
-    pub fn new(difficulty: Difficulty) -> Self {
+    pub fn new(difficulty: Difficulty, best_times: BestTimes, best_times_path: Option<PathBuf>) -> Self {
         let layout = BoardLayout::for_difficulty(difficulty);
         Self {
             difficulty,
@@ -36,6 +45,9 @@ impl App {
             menu: Menu::default(),
             menu_layout: MenuLayout::new(window_size(layout.rect()).x),
             menu_owns_mouse: false,
+            best_times,
+            best_times_path,
+            win_recorded: false,
         }
     }
 
@@ -66,6 +78,7 @@ impl App {
         // 2. The board and the face, unless the menu has the mouse.
         let board_enabled = self.board_enabled();
         handle_mouse(&mut self.game, &self.layout, &mut self.tracker, board_enabled);
+        self.record_win(Instant::now());
         if board_enabled && face_clicked(&self.header) {
             command = command.or(Some(Command::NewGame));
         }
@@ -85,17 +98,39 @@ impl App {
         !self.menu_owns_mouse && !self.menu.is_open()
     }
 
+    /// On the first frame after a win: remember the time if it's a record, and save it.
+    /// Saving can fail (no permission, disk full); that's reported, but the game goes on.
+    fn record_win(&mut self, now: Instant) {
+        if self.game.status() != GameStatus::Won || self.win_recorded {
+            return;
+        }
+        self.win_recorded = true;
+
+        let seconds = self.game.elapsed_seconds(now);
+        if self.best_times.record(self.difficulty, seconds)
+            && let Some(path) = &self.best_times_path
+            && let Err(error) = scores::save(path, &self.best_times)
+        {
+            eprintln!("Couldn't save best times to {}: {error}", path.display());
+        }
+    }
+
     /// Carries out a command. Returns the new window size if the board size changed.
     /// Kept apart from `update` (which reads real input) so tests can call it directly.
     pub fn apply(&mut self, command: Command) -> Option<Vec2> {
         match command {
             Command::NewGame => {
                 self.game = Game::new(self.difficulty);
+                self.win_recorded = false;
                 None
             }
             Command::Start(difficulty) => {
                 let resized = difficulty != self.difficulty;
-                *self = App::new(difficulty);
+                // The records survive a new difficulty: take them out of the old App before
+                // it's replaced. `mem::take` leaves an empty `BestTimes::default()` behind.
+                let best_times = std::mem::take(&mut self.best_times);
+                let best_times_path = self.best_times_path.take();
+                *self = App::new(difficulty, best_times, best_times_path);
                 resized.then(|| self.window_size())
             }
         }
@@ -108,7 +143,13 @@ impl App {
         draw_header(&self.game, &self.header, face, &fonts.counter);
         draw_board(&self.game, &self.layout, &fonts.cell);
         // Last, so the open dropdown is drawn on top of the board.
-        draw_menu(&self.menu_layout, self.menu.is_open(), self.difficulty, &fonts.cell);
+        draw_menu(
+            &self.menu_layout,
+            self.menu.is_open(),
+            self.difficulty,
+            &self.best_times,
+            &fonts.cell,
+        );
     }
 }
 
@@ -117,20 +158,25 @@ mod tests {
     use super::*;
     use crate::logic::{GameStatus, Position};
 
+    /// An app that never touches the real best-times file.
+    fn app(difficulty: Difficulty) -> App {
+        App::new(difficulty, BestTimes::default(), None)
+    }
+
     fn board_size(app: &App) -> (usize, usize) {
         (app.game.board().rows(), app.game.board().cols())
     }
 
     #[test]
     fn starts_with_a_fresh_game_of_the_given_difficulty() {
-        let app = App::new(Difficulty::Intermediate);
+        let app = app(Difficulty::Intermediate);
         assert_eq!(app.game.status(), GameStatus::Ready);
         assert_eq!(board_size(&app), (16, 16));
     }
 
     #[test]
     fn new_game_restarts_without_resizing() {
-        let mut app = App::new(Difficulty::Beginner);
+        let mut app = app(Difficulty::Beginner);
         app.game.reveal(Position::new(4, 4));
         assert_ne!(app.game.status(), GameStatus::Ready);
 
@@ -141,7 +187,7 @@ mod tests {
 
     #[test]
     fn a_new_difficulty_restarts_and_resizes_the_window() {
-        let mut app = App::new(Difficulty::Beginner);
+        let mut app = app(Difficulty::Beginner);
         let beginner_window = app.window_size();
 
         let new_window = app.apply(Command::Start(Difficulty::Expert));
@@ -154,9 +200,17 @@ mod tests {
 
     #[test]
     fn choosing_the_same_difficulty_restarts_without_resizing() {
-        let mut app = App::new(Difficulty::Expert);
+        let mut app = app(Difficulty::Expert);
         app.game.reveal(Position::new(0, 0));
         assert_eq!(app.apply(Command::Start(Difficulty::Expert)), None);
         assert_eq!(app.game.status(), GameStatus::Ready);
+    }
+
+    #[test]
+    fn records_survive_a_change_of_difficulty() {
+        let mut app = app(Difficulty::Beginner);
+        app.best_times.record(Difficulty::Beginner, 42);
+        app.apply(Command::Start(Difficulty::Expert));
+        assert_eq!(app.best_times.get(Difficulty::Beginner), Some(42));
     }
 }

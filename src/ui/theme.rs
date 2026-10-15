@@ -28,12 +28,14 @@ pub const BUTTON_BEVEL: f32 = 2.0;
 
 pub const MENU_FONT_SIZE: u16 = 15;
 pub const MENU_TITLE_WIDTH: f32 = 54.0;
-pub const MENU_WIDTH: f32 = 190.0;
+pub const MENU_WIDTH: f32 = 220.0;
 pub const MENU_ITEM_HEIGHT: f32 = 24.0;
 /// Space on the left and right inside the menu.
 pub const MENU_PADDING: f32 = 8.0;
 /// Room on the left of each item for the check mark.
 pub const MENU_CHECK_WIDTH: f32 = 26.0;
+/// Room on the right of each item for its shortcut key.
+pub const MENU_SHORTCUT_WIDTH: f32 = 24.0;
 
 pub const BACKGROUND: Color = Color::from_rgba(0xC0, 0xC0, 0xC0, 0xFF);
 pub const BEVEL_LIGHT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
@@ -57,6 +59,8 @@ pub const MENU_TEXT: Color = Color::from_rgba(0x00, 0x00, 0x00, 0xFF);
 /// The classic Windows selection colour: navy, with white text.
 pub const MENU_HIGHLIGHT: Color = Color::from_rgba(0x00, 0x00, 0x80, 0xFF);
 pub const MENU_HIGHLIGHT_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
+/// The best times in the menu: quieter than the labels.
+pub const MENU_DIM_TEXT: Color = Color::from_rgba(0x60, 0x60, 0x60, 0xFF);
 
 /// The classic colour for each number. 0 is never drawn.
 pub fn number_color(adjacent_mines: u8) -> Color {

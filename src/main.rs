@@ -1,5 +1,6 @@
 mod app;
 mod logic;
+mod scores;
 mod ui;
 
 use macroquad::prelude::*;
@@ -22,7 +23,12 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut app = App::new(Difficulty::default());
+    let best_times_path = scores::default_path();
+    let best_times = best_times_path
+        .as_deref()
+        .map(scores::load_or_default)
+        .unwrap_or_default();
+    let mut app = App::new(Difficulty::default(), best_times, best_times_path);
     let fonts = Fonts::load();
 
     loop {

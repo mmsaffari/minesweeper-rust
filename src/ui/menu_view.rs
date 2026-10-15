@@ -2,10 +2,11 @@ use macroquad::prelude::*;
 
 use super::{Command, MenuLayout, bevel, theme};
 use crate::logic::Difficulty;
+use crate::scores::BestTimes;
 
 /// Draws the menu bar and, if `open`, the dropdown on top of everything else.
-/// `current` gets the check mark.
-pub fn draw_menu(layout: &MenuLayout, open: bool, current: Difficulty, font: &Font) {
+/// `current` gets the check mark; each difficulty shows its best time.
+pub fn draw_menu(layout: &MenuLayout, open: bool, current: Difficulty, best: &BestTimes, font: &Font) {
     // The bar, with a thin line separating it from the window below.
     let bar = layout.bar;
     draw_rectangle(bar.x, bar.y, bar.w, bar.h, theme::BACKGROUND);
@@ -37,13 +38,13 @@ pub fn draw_menu(layout: &MenuLayout, open: bool, current: Difficulty, font: &Fo
     for item in &layout.items {
         let rect = item.rect;
         let hovered = rect.contains(mouse);
-        let color = if hovered {
+        let (color, dim_color) = if hovered {
             // Inset so the highlight doesn't cover the dropdown's raised edge.
             let b = theme::BUTTON_BEVEL;
             draw_rectangle(rect.x + b, rect.y, rect.w - 2.0 * b, rect.h, theme::MENU_HIGHLIGHT);
-            theme::MENU_HIGHLIGHT_TEXT
+            (theme::MENU_HIGHLIGHT_TEXT, theme::MENU_HIGHLIGHT_TEXT)
         } else {
-            theme::MENU_TEXT
+            (theme::MENU_TEXT, theme::MENU_DIM_TEXT)
         };
 
         if item.command == Command::Start(current) {
@@ -52,9 +53,16 @@ pub fn draw_menu(layout: &MenuLayout, open: bool, current: Difficulty, font: &Fo
         // Labels leave room on the left for the check mark.
         draw_label(item.label, rect.x + theme::MENU_CHECK_WIDTH, rect, color, font);
 
-        let shortcut_width = measure_text(item.shortcut, Some(font), theme::MENU_FONT_SIZE, 1.0).width;
-        let shortcut_x = rect.right() - theme::MENU_PADDING - shortcut_width;
-        draw_label(item.shortcut, shortcut_x, rect, color, font);
+        // Best time, right-aligned just left of the shortcut column. Nothing until it's been won.
+        if let Command::Start(difficulty) = item.command
+            && let Some(seconds) = best.get(difficulty)
+        {
+            let text = format!("{seconds} s");
+            let right = rect.right() - theme::MENU_PADDING - theme::MENU_SHORTCUT_WIDTH;
+            draw_label_right_aligned(&text, right, rect, dim_color, font);
+        }
+
+        draw_label_right_aligned(item.shortcut, rect.right() - theme::MENU_PADDING, rect, color, font);
     }
 }
 
@@ -69,6 +77,12 @@ fn draw_label(text: &str, x: f32, row: Rect, color: Color, font: &Font) {
         ..Default::default()
     };
     draw_text_ex(text, x, y, params);
+}
+
+/// Text ending at `right`, vertically centred in `row`.
+fn draw_label_right_aligned(text: &str, right: f32, row: Rect, color: Color, font: &Font) {
+    let width = measure_text(text, Some(font), theme::MENU_FONT_SIZE, 1.0).width;
+    draw_label(text, right - width, row, color, font);
 }
 
 /// A ✓ made of two lines, in the left margin of `row`.

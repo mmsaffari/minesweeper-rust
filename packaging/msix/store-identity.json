@@ -1,0 +1,7 @@
+{
+  "_where": "Partner Center → Apps and games → the app → Product management → Product identity",
+  "IdentityName": "TODO Package/Identity/Name",
+  "Publisher": "TODO Package/Identity/Publisher (starts with CN=)",
+  "PublisherDisplayName": "TODO Package/Properties/PublisherDisplayName",
+  "DisplayName": "TODO the reserved app name"
+}

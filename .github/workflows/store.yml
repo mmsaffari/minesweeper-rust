@@ -1,0 +1,46 @@
+# Builds the Microsoft Store package (.msix) and keeps it as a download on the run's page
+# (Summary → Artifacts), to upload to Partner Center by hand.
+#
+# It isn't attached to the GitHub release: it's unsigned until the Store signs it, so it
+# can't be installed from there anyway. The build itself is in packaging/msix/build-msix.ps1.
+name: Store package
+
+on:
+  push:
+    tags: ["v*"]
+    # And on any branch where the packaging itself changed, to check it still works.
+    branches: ["**"]
+    paths:
+      - "packaging/**"
+      - "examples/store_logos.rs"
+      - ".github/workflows/store.yml"
+  # A "Run workflow" button on the Actions page, to build one without a release.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  msix:
+    name: Build the .msix
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Never package something that fails the tests.
+      - run: cargo test --locked
+
+      - run: ./packaging/msix/build-msix.ps1
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: minesweeper-msix
+          path: target/msix/*.msix
+          if-no-files-found: error

@@ -24,6 +24,10 @@ strip = true        # leave debug symbols out of the executable
 [build-dependencies]
 winresource = "0.1.34"
 
+# Only for tools in examples/, never part of the game.
+[dev-dependencies]
+png = "0.17.16" # examples/store_logos.rs writes the Store's logo files
+
 [features]
 # Look for a newer release on GitHub once at startup. The GitHub release build turns it on;
 # the Microsoft Store build leaves it off, because the Store updates apps itself.

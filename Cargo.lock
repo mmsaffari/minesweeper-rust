@@ -358,6 +358,7 @@ dependencies = [
  "directories",
  "macroquad",
  "open",
+ "png",
  "rand",
  "serde",
  "serde_json",

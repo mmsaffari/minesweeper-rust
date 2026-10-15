@@ -1,0 +1,55 @@
+# Runs on every push and pull request: the same checks you run locally before a commit,
+# on Linux and on native Windows, so "it works on my machine" can't slip through.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A newer push to the same branch cancels the older, still-running check.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Formatting doesn't depend on the system, so it only runs once.
+  fmt:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  check:
+    name: Lint and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false # if Windows fails, still show whether Linux passes (and vice versa)
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      # Keeps compiled dependencies between runs, so later runs take seconds, not minutes.
+      - uses: Swatinem/rust-cache@v2
+
+      # macroquad needs the same system libraries as in WSL (X11, input, OpenGL, sound).
+      # Windows has them built in.
+      - name: Install Linux libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev
+
+      # Like `cargo lint`, but `-D warnings` turns every warning into an error, so it fails the run.
+      - run: cargo clippy --all-targets -- -D warnings
+
+      - run: cargo test

@@ -8,9 +8,9 @@ use macroquad::prelude::clear_background;
 use crate::logic::{Difficulty, Game, GameStatus};
 use crate::scores::{self, BestTimes};
 use crate::ui::{
-    BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick, MenuLayout, any_button_down,
+    BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick, MenuLayout, Press, any_button_down,
     draw_board, draw_header, draw_menu, face_clicked, handle_mouse, keyboard_command, left_pressed, mouse,
-    pressing_board, theme, window_size,
+    pressed_cells, theme, window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -137,11 +137,18 @@ impl App {
     }
 
     pub fn draw(&self, fonts: &Fonts) {
-        let pressing = self.board_enabled() && pressing_board(&self.layout);
-        let face = Face::for_game(self.game.status(), pressing);
+        // What's held down, and where: drives both the pushed-in cells and the surprised face.
+        let press = if self.board_enabled() {
+            self.tracker.held()
+        } else {
+            Press::None
+        };
+        let under_mouse = self.layout.position_at(mouse());
+        let pressed = pressed_cells(&self.game, under_mouse, press);
+        let face = Face::for_game(self.game.status(), press != Press::None && under_mouse.is_some());
         clear_background(theme::BACKGROUND);
         draw_header(&self.game, &self.header, face, &fonts.counter);
-        draw_board(&self.game, &self.layout, &fonts.cell);
+        draw_board(&self.game, &self.layout, &pressed, &fonts.cell);
         // Last, so the open dropdown is drawn on top of the board.
         draw_menu(
             &self.menu_layout,

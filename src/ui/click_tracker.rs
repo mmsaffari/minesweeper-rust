@@ -1,6 +1,6 @@
 use macroquad::input::MouseButton;
 
-use super::MouseAction;
+use super::{MouseAction, Press};
 
 /// Turns raw button presses/releases into game actions, the classic Windows way:
 ///
@@ -18,6 +18,7 @@ use super::MouseAction;
 pub struct ClickTracker {
     left_down: bool,
     right_down: bool,
+    middle_down: bool,
     /// A chord happened during this two-button gesture; the remaining release must be ignored.
     chorded: bool,
 }
@@ -37,7 +38,22 @@ impl ClickTracker {
                     Some(MouseAction::ToggleMark)
                 }
             }
-            MouseButton::Middle | MouseButton::Unknown => None,
+            MouseButton::Middle => {
+                self.middle_down = true;
+                None // a middle click chords on release
+            }
+            MouseButton::Unknown => None,
+        }
+    }
+
+    /// What's held down right now, so the board can show cells pushed in.
+    pub fn held(&self) -> Press {
+        if self.middle_down || (self.left_down && self.right_down) {
+            Press::Chord
+        } else if self.left_down && !self.chorded {
+            Press::Single
+        } else {
+            Press::None // nothing, only the right button, or the leftover button after a chord
         }
     }
 
@@ -66,7 +82,10 @@ impl ClickTracker {
                 }
                 action
             }
-            MouseButton::Middle => Some(MouseAction::Chord),
+            MouseButton::Middle => {
+                self.middle_down = false;
+                Some(MouseAction::Chord)
+            }
             MouseButton::Unknown => None,
         }
     }
@@ -75,6 +94,8 @@ impl ClickTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // `Press` is already the name of a test event here, so the enum gets another name.
+    use crate::ui::Press as Held;
     use MouseAction::{Chord, Reveal, ToggleMark};
     use MouseButton::{Left, Middle, Right};
 
@@ -164,5 +185,42 @@ mod tests {
             run(&[Press(MouseButton::Unknown), Release(MouseButton::Unknown)]),
             [None, None]
         );
+    }
+
+    // --- held (for the pushed-in look) ---
+
+    /// What `held()` says after each event.
+    fn held_after(events: &[Event]) -> Vec<Held> {
+        let mut tracker = ClickTracker::default();
+        events
+            .iter()
+            .map(|&event| {
+                match event {
+                    Press(button) => tracker.press(button),
+                    Release(button) => tracker.release(button),
+                };
+                tracker.held()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn holding_left_presses_one_cell_until_released() {
+        assert_eq!(held_after(&[Press(Left), Release(Left)]), [Held::Single, Held::None]);
+    }
+
+    #[test]
+    fn the_right_button_alone_presses_nothing() {
+        assert_eq!(held_after(&[Press(Right), Release(Right)]), [Held::None, Held::None]);
+    }
+
+    #[test]
+    fn both_buttons_or_the_middle_one_press_a_chord() {
+        assert_eq!(
+            held_after(&[Press(Left), Press(Right), Release(Right), Release(Left)]),
+            [Held::Single, Held::Chord, Held::None, Held::None],
+            "after the chord, the leftover left button must not press a cell"
+        );
+        assert_eq!(held_after(&[Press(Middle), Release(Middle)]), [Held::Chord, Held::None]);
     }
 }

@@ -48,11 +48,6 @@ pub fn face_clicked(header: &HeaderLayout) -> bool {
     is_mouse_button_released(MouseButton::Left) && header.face.contains(Vec2::from(mouse_position()))
 }
 
-/// The left button is held down over the board, which makes the face look surprised.
-pub fn pressing_board(layout: &BoardLayout) -> bool {
-    is_mouse_button_down(MouseButton::Left) && layout.position_at(Vec2::from(mouse_position())).is_some()
-}
-
 /// Turns "what" (the action) into "where" (the cell under the mouse) and tells the game.
 /// Clicks outside the board, and button events that aren't actions, are ignored.
 fn apply(action: Option<MouseAction>, game: &mut Game, layout: &BoardLayout) {

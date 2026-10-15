@@ -6,7 +6,8 @@ use super::theme;
 use crate::logic::{Cell, CellContent, CellState, Game, GameStatus, Position};
 
 /// Draws every cell of the board. Only reads the game; changing it is the input's job.
-pub fn draw_board(game: &Game, layout: &BoardLayout, font: &Font) {
+/// `pressed`: cells to show pushed in (see `pressed_cells`).
+pub fn draw_board(game: &Game, layout: &BoardLayout, pressed: &[Position], font: &Font) {
     let board = game.board();
     let lost = game.status() == GameStatus::Lost;
 
@@ -14,7 +15,7 @@ pub fn draw_board(game: &Game, layout: &BoardLayout, font: &Font) {
         for col in 0..board.cols() {
             let pos = Position::new(row, col);
             if let Some(cell) = board.cell(pos) {
-                draw_cell(cell, layout.cell_rect(pos), lost, font);
+                draw_cell(cell, layout.cell_rect(pos), lost, pressed.contains(&pos), font);
             }
         }
     }
@@ -22,7 +23,7 @@ pub fn draw_board(game: &Game, layout: &BoardLayout, font: &Font) {
     bevel::draw_sunken_border(layout.rect(), theme::BEVEL);
 }
 
-fn draw_cell(cell: &Cell, rect: Rect, lost: bool, font: &Font) {
+fn draw_cell(cell: &Cell, rect: Rect, lost: bool, pressed: bool, font: &Font) {
     // Arms are tried top to bottom, so the special "game lost" cases (with `if` guards)
     // must come before the normal arms for the same state.
     match cell.state() {
@@ -38,6 +39,13 @@ fn draw_cell(cell: &Cell, rect: Rect, lost: bool, font: &Font) {
             draw_flat(rect, theme::BACKGROUND);
             draw_mine(rect);
             draw_cross(rect);
+        }
+
+        // Held down under the mouse: pushed in, i.e. flat like an opened empty cell.
+        CellState::Hidden if pressed => draw_flat(rect, theme::BACKGROUND),
+        CellState::Questioned if pressed => {
+            draw_flat(rect, theme::BACKGROUND);
+            draw_centered_text("?", rect, theme::QUESTION_MARK, font);
         }
 
         CellState::Hidden => draw_raised(rect),

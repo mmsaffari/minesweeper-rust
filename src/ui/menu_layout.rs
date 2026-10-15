@@ -12,11 +12,12 @@ pub struct MenuLayout {
 
 type Entry = (&'static str, &'static str, Command);
 
-const GAME: [Entry; 4] = [
+const GAME: [Entry; 5] = [
     ("New", "F2", Command::NewGame),
     ("Beginner", "1", Command::Start(Difficulty::Beginner)),
     ("Intermediate", "2", Command::Start(Difficulty::Intermediate)),
     ("Expert", "3", Command::Start(Difficulty::Expert)),
+    ("Copy board", "Ctrl+C", Command::CopyBoard),
 ];
 
 const HELP: [Entry; 1] = [("About Minesweeper", "F1", Command::About)];
@@ -113,6 +114,7 @@ mod tests {
                 Command::Start(Difficulty::Beginner),
                 Command::Start(Difficulty::Intermediate),
                 Command::Start(Difficulty::Expert),
+                Command::CopyBoard,
             ]
         );
         assert_eq!(commands(&layout.menus[1]), [Command::About]);

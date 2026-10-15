@@ -3,14 +3,17 @@ use std::time::Instant;
 
 use macroquad::input::{KeyCode, is_key_pressed};
 use macroquad::math::Vec2;
+use macroquad::miniquad::window::clipboard_set;
 use macroquad::prelude::{clear_background, get_time};
 
 use crate::logic::{Difficulty, Game, GameStatus};
 use crate::scores::{self, BestTimes};
+use crate::solver::View;
 use crate::ui::{
     AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick,
-    MenuLayout, Press, any_button_down, draw_about, draw_board, draw_header, draw_menu, face_clicked, handle_mouse,
-    keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme, window_size,
+    MenuLayout, Press, Toast, any_button_down, draw_about, draw_board, draw_header, draw_menu, draw_toast,
+    face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme,
+    window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -32,6 +35,11 @@ pub struct App {
     best_times_path: Option<PathBuf>,
     /// This game's win has already been checked for a record (it's won for many frames).
     win_recorded: bool,
+    /// A short message over the board, if one is showing.
+    toast: Option<Toast>,
+    /// Text waiting to be put on the clipboard. `apply` only asks for it; `update` does it,
+    /// because the clipboard needs the real window (and `apply` must work in tests).
+    clipboard_request: Option<String>,
 }
 
 impl App {
@@ -50,6 +58,8 @@ impl App {
             best_times,
             best_times_path,
             win_recorded: false,
+            toast: None,
+            clipboard_request: None,
         }
     }
 
@@ -94,7 +104,16 @@ impl App {
         command = command.or_else(keyboard_command);
 
         self.release_mouse_when_buttons_are_up();
-        command.and_then(|command| self.apply(command))
+        let resize = command.and_then(|command| self.apply(command));
+
+        // The effects `apply` can only ask for: they need the real window and clock.
+        if let Some(text) = self.clipboard_request.take() {
+            clipboard_set(&text);
+        }
+        if let Some(toast) = &mut self.toast {
+            toast.start(get_time());
+        }
+        resize
     }
 
     /// While the About dialog is open it is modal: every click and key belongs to it.
@@ -175,6 +194,11 @@ impl App {
                 self.about.show();
                 None
             }
+            Command::CopyBoard => {
+                self.clipboard_request = Some(View::from_game(&self.game).to_string());
+                self.toast = Some(Toast::new("Board copied to the clipboard"));
+                None
+            }
         }
     }
 
@@ -204,6 +228,11 @@ impl App {
             &self.best_times,
             &fonts.cell,
         );
+        if let Some(toast) = &self.toast
+            && toast.is_visible(get_time())
+        {
+            draw_toast(toast.text(), self.layout.rect(), &fonts.cell);
+        }
         if self.about.is_open() {
             draw_about(&self.about_layout(), self.about.ok_pressed(), &fonts.cell, get_time());
         }
@@ -314,5 +343,17 @@ mod tests {
             !app.board_enabled(),
             "until every button is up, the board must not react"
         );
+    }
+
+    #[test]
+    fn copy_board_asks_for_the_visible_board_on_the_clipboard() {
+        let mut app = app(Difficulty::Beginner);
+        app.game.toggle_mark(Position::new(0, 0));
+        assert_eq!(app.apply(Command::CopyBoard), None);
+
+        let text = app.clipboard_request.as_deref().expect("a clipboard request");
+        assert_eq!(text, View::from_game(&app.game).to_string());
+        assert!(text.starts_with('F'), "{text}");
+        assert!(app.toast.is_some(), "the player is told it worked");
     }
 }

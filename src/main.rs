@@ -5,6 +5,7 @@
 mod app;
 mod logic;
 mod scores;
+mod solver;
 mod ui;
 
 use macroquad::miniquad::conf::Icon;

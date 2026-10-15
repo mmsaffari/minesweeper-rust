@@ -25,6 +25,8 @@ mod mouse_action;
 mod press;
 mod pressed_cells;
 pub mod theme;
+mod toast;
+mod toast_view;
 mod window_size;
 
 pub use about_dialog::AboutDialog;
@@ -51,4 +53,6 @@ pub use menu_view::draw_menu;
 pub use mouse_action::MouseAction;
 pub use press::Press;
 pub use pressed_cells::pressed_cells;
+pub use toast::Toast;
+pub use toast_view::draw_toast;
 pub use window_size::window_size;

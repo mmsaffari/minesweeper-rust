@@ -10,4 +10,6 @@ pub enum Command {
     Start(Difficulty),
     /// Show the About dialog.
     About,
+    /// Copy the board, as the player sees it, to the clipboard as text.
+    CopyBoard,
 }

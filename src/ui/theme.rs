@@ -81,6 +81,12 @@ pub const TITLE_BAR_END: Color = Color::from_rgba(0x10, 0x84, 0xD0, 0xFF);
 pub const TITLE_BAR_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 /// The little star that glints next to the mine in the About dialog.
 pub const SPARKLE: Color = Color::from_rgba(0xFF, 0xE0, 0x40, 0xFF);
+// --- Toasts (short messages over the board) ---
+
+pub const TOAST_FONT_SIZE: u16 = 14;
+pub const TOAST_BACKGROUND: Color = Color::new(0.0, 0.0, 0.0, 0.75);
+pub const TOAST_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
+
 /// The classic colour for each number. 0 is never drawn.
 pub fn number_color(adjacent_mines: u8) -> Color {
     let (r, g, b) = match adjacent_mines {

@@ -28,10 +28,6 @@ impl Board {
         self.cols
     }
 
-    pub fn contains(&self, pos: Position) -> bool {
-        self.cell(pos).is_some()
-    }
-
     pub fn cell(&self, pos: Position) -> Option<&Cell> {
         self.cells.get(pos.row)?.get(pos.col)
     }
@@ -41,24 +37,7 @@ impl Board {
     }
 
     pub fn neighbours(&self, pos: Position) -> Vec<Position> {
-        let mut result = Vec::with_capacity(8);
-        for dr in [-1, 0, 1] {
-            for dc in [-1, 0, 1] {
-                if dr == 0 && dc == 0 {
-                    continue;
-                }
-                // `checked_add_signed` gives `None` below 0 (the top/left edges);
-                // `contains` rules out the bottom/right edges. No casts needed.
-                let (Some(row), Some(col)) = (pos.row.checked_add_signed(dr), pos.col.checked_add_signed(dc)) else {
-                    continue;
-                };
-                let neighbour = Position::new(row, col);
-                if self.contains(neighbour) {
-                    result.push(neighbour);
-                }
-            }
-        }
-        result
+        pos.neighbours(self.rows, self.cols)
     }
 
     /// Call once, on a fresh board. Panics if a position is off the board.
@@ -181,15 +160,15 @@ mod tests {
         assert!(mine_positions(&board).is_empty(), "a new board should have no mines");
     }
 
-    // --- contains / cell ---
+    // --- cell ---
 
     #[test]
-    fn contains_is_true_inside_and_false_outside() {
+    fn cell_is_found_inside_and_not_outside() {
         let board = example_board();
         let (rows, cols) = (EXAMPLE_ROWS, EXAMPLE_COLS);
 
         for pos in [p(0, 0), p(1, 1), p(rows / 2, cols / 2), p(rows - 1, cols - 1)] {
-            assert!(board.contains(pos), "{pos:?} should be on the board");
+            assert!(board.cell(pos).is_some(), "{pos:?} should be on the board");
         }
         for pos in [
             p(0, cols),
@@ -199,7 +178,7 @@ mod tests {
             p(rows, cols),
             p(rows + 1, cols + 1),
         ] {
-            assert!(!board.contains(pos), "{pos:?} should NOT be on the board");
+            assert!(board.cell(pos).is_none(), "{pos:?} should NOT be on the board");
         }
     }
 

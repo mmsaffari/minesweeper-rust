@@ -27,10 +27,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # Never publish something that fails the tests.
-      - run: cargo test --locked
+      - run: cargo test --locked --features update-check
 
       # `--locked`: build with exactly the dependency versions in Cargo.lock.
-      - run: cargo build --release --locked
+      # The GitHub build checks for updates; the Store build (without the feature) doesn't.
+      - run: cargo build --release --locked --features update-check
 
       # The game's own licenses, plus the fonts' (SIL OFL): the fonts are compiled into the .exe,
       # and their license must be shipped with it.

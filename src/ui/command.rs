@@ -20,4 +20,8 @@ pub enum Command {
     CopyBoard,
     /// Point out a cell that is certainly safe, or certainly a mine.
     Hint,
+    /// Turn the startup check for a newer release on or off (GitHub build only).
+    ToggleUpdateCheck,
+    /// Open the newer release's page in the browser.
+    OpenUpdatePage,
 }

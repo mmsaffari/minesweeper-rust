@@ -61,7 +61,7 @@ mod tests {
     const HELP: usize = 1;
 
     fn layout() -> MenuLayout {
-        MenuLayout::new(400.0)
+        MenuLayout::new(400.0, crate::ui::MenuOptions::default())
     }
 
     /// A menu's item by what it does, not by where it is (new items mustn't break tests).

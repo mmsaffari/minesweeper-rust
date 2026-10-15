@@ -1,15 +1,15 @@
 use macroquad::prelude::*;
 
 use super::{Command, MenuLayout, bevel, theme};
-use crate::logic::Difficulty;
 use crate::scores::BestTimes;
 
 /// Draws the menu bar and, if a menu is `open` (index into `layout.menus`), its dropdown on
-/// top of everything else. `current` gets the check mark; each difficulty shows its best time.
+/// top of everything else. The items whose command is in `checked` get a check mark (the
+/// current difficulty, "Check for updates" when it's on); each difficulty shows its best time.
 pub fn draw_menu(
     layout: &MenuLayout,
     open: Option<usize>,
-    current: Difficulty,
+    checked: &[Command],
     game_number: u32,
     best: &BestTimes,
     font: &Font,
@@ -60,7 +60,7 @@ pub fn draw_menu(
             (theme::MENU_TEXT, theme::MENU_DIM_TEXT)
         };
 
-        if item.command == Command::Start(current) {
+        if checked.contains(&item.command) {
             draw_check_mark(rect, color);
         }
         // Labels leave room on the left for the check mark.

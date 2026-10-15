@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::time::Instant;
 
 use macroquad::input::{KeyCode, is_key_pressed};
@@ -6,16 +5,19 @@ use macroquad::math::Vec2;
 use macroquad::miniquad::window::clipboard_set;
 use macroquad::prelude::{clear_background, get_time};
 
+use crate::config::Settings;
 use crate::logic::{Difficulty, Game, GameStatus};
-use crate::scores::{self, BestTimes};
+use crate::scores::BestTimes;
 use crate::solver::{Hint, View, find_hint};
+use crate::storage::Stored;
 use crate::ui::{
     AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, DialogButton, Face, Fonts, HeaderLayout, Menu,
-    MenuClick, MenuLayout, NumberDialog, NumberDialogLayout, Press, Toast, any_button_down, any_button_pressed,
-    copy_shortcut_held, draw_about, draw_board, draw_header, draw_hint, draw_menu, draw_number_dialog, draw_toast,
-    face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme,
-    typed_chars, window_size,
+    MenuClick, MenuLayout, MenuOptions, NumberDialog, NumberDialogLayout, Press, Toast, any_button_down,
+    any_button_pressed, copy_shortcut_held, draw_about, draw_board, draw_header, draw_hint, draw_menu,
+    draw_number_dialog, draw_toast, face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse,
+    pressed_cells, theme, typed_chars, window_size,
 };
+use crate::updates::{UpdateCheck, Version, open_release_page};
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
 /// the current game, where things are on screen, and the mouse gesture in progress.
@@ -32,9 +34,8 @@ pub struct App {
     /// The current mouse gesture started on the menu or a dialog (or closed one), so until
     /// every button is up again, nothing may happen on the board or the face.
     mouse_captured: bool,
-    best_times: BestTimes,
-    /// Where to save new records; `None` in tests (and on a system without a home folder).
-    best_times_path: Option<PathBuf>,
+    best_times: Stored<BestTimes>,
+    settings: Stored<Settings>,
     /// This game's win has already been checked for a record (it's won for many frames).
     win_recorded: bool,
     /// Whether this game can set a best time: only games with a fresh random number can.
@@ -47,10 +48,14 @@ pub struct App {
     /// Text waiting to be put on the clipboard. `apply` only asks for it; `update` does it,
     /// because the clipboard needs the real window (and `apply` must work in tests).
     clipboard_request: Option<String>,
+    /// The background check for a newer release, if one is running.
+    update_check: UpdateCheck,
+    /// The newer release it found, once it has.
+    available_update: Option<Version>,
 }
 
 impl App {
-    pub fn new(difficulty: Difficulty, best_times: BestTimes, best_times_path: Option<PathBuf>) -> Self {
+    pub fn new(difficulty: Difficulty, best_times: Stored<BestTimes>, settings: Stored<Settings>) -> Self {
         let layout = BoardLayout::for_difficulty(difficulty);
         Self {
             difficulty,
@@ -59,17 +64,27 @@ impl App {
             header: HeaderLayout::above(layout.rect()),
             tracker: ClickTracker::default(),
             menu: Menu::default(),
-            menu_layout: MenuLayout::new(window_size(layout.rect()).x),
+            menu_layout: MenuLayout::new(window_size(layout.rect()).x, Self::menu_options(None)),
             about: AboutDialog::default(),
             number_dialog: NumberDialog::default(),
             mouse_captured: false,
             best_times,
-            best_times_path,
+            settings,
             win_recorded: false,
             ranked: true,
             toast: None,
             hint: None,
             clipboard_request: None,
+            update_check: UpdateCheck::default(),
+            available_update: None,
+        }
+    }
+
+    /// Asks GitHub, in the background, whether there's a newer release, unless the player
+    /// turned that off. Only `main` calls this: tests must never go online.
+    pub fn start_update_check(&mut self) {
+        if self.settings.value.check_for_updates {
+            self.update_check = UpdateCheck::start();
         }
     }
 
@@ -77,9 +92,37 @@ impl App {
         window_size(self.layout.rect())
     }
 
+    /// Which optional menu items to show. An associated function, not a method, because
+    /// `new` needs it before there is a `self`.
+    fn menu_options(available_update: Option<Version>) -> MenuOptions {
+        MenuOptions {
+            update_toggle: UpdateCheck::is_supported(),
+            update_available: available_update.is_some(),
+        }
+    }
+
+    fn rebuild_menu_layout(&mut self) {
+        self.menu_layout = MenuLayout::new(self.window_size().x, Self::menu_options(self.available_update));
+    }
+
+    /// The background check's answer arrives on one frame, whatever else is going on.
+    fn receive_update(&mut self) {
+        if let Some(version) = self.update_check.poll() {
+            self.show_update(version);
+        }
+    }
+
+    /// Kept apart from `receive_update` so tests can pretend an answer arrived.
+    fn show_update(&mut self, version: Version) {
+        self.available_update = Some(version);
+        self.rebuild_menu_layout();
+        self.toast = Some(Toast::new(format!("Version {version} is out (Help menu)")));
+    }
+
     /// Reads this frame's mouse and keyboard input and updates the game.
     /// Returns the new window size when the window has to change.
     pub fn update(&mut self) -> Option<Vec2> {
+        self.receive_update();
         if self.about.is_open() {
             self.update_about();
             return None;
@@ -238,11 +281,8 @@ impl App {
         self.win_recorded = true;
 
         let seconds = self.game.elapsed_seconds(now);
-        if self.best_times.record(self.difficulty, seconds)
-            && let Some(path) = &self.best_times_path
-            && let Err(error) = scores::save(path, &self.best_times)
-        {
-            eprintln!("Couldn't save best times to {}: {error}", path.display());
+        if self.best_times.value.record(self.difficulty, seconds) {
+            self.best_times.save();
         }
     }
 
@@ -278,7 +318,7 @@ impl App {
                 self.difficulty = difficulty;
                 self.layout = BoardLayout::for_difficulty(difficulty);
                 self.header = HeaderLayout::above(self.layout.rect());
-                self.menu_layout = MenuLayout::new(self.window_size().x);
+                self.rebuild_menu_layout();
                 self.start_game(Game::new(difficulty), true);
                 resized.then(|| self.window_size())
             }
@@ -306,6 +346,26 @@ impl App {
                     },
                 };
                 self.toast = message.map(Toast::new);
+                None
+            }
+            Command::ToggleUpdateCheck => {
+                let settings = &mut self.settings.value;
+                settings.check_for_updates = !settings.check_for_updates;
+                self.settings.save();
+                // Turning it on doesn't go online right away: only `main` starts a check.
+                // Turning it off stops listening to a check that's still running.
+                let message = if self.settings.value.check_for_updates {
+                    "Update check: on (from next start)"
+                } else {
+                    self.update_check = UpdateCheck::default();
+                    "Update check: off"
+                };
+                self.toast = Some(Toast::new(message));
+                None
+            }
+            Command::OpenUpdatePage => {
+                self.menu.close();
+                open_release_page();
                 None
             }
         }
@@ -338,12 +398,16 @@ impl App {
             Some(Hint::NoSureMove) | None => {}
         }
         // After the board and the hint, so an open dropdown is drawn on top of them.
+        let mut checked = vec![Command::Start(self.difficulty)];
+        if self.settings.value.check_for_updates {
+            checked.push(Command::ToggleUpdateCheck);
+        }
         draw_menu(
             &self.menu_layout,
             self.menu.open_menu(),
-            self.difficulty,
+            &checked,
             self.game.number(),
-            &self.best_times,
+            &self.best_times.value,
             &fonts.cell,
         );
         if let Some(toast) = &self.toast
@@ -370,9 +434,13 @@ mod tests {
     use super::*;
     use crate::logic::{GameStatus, Position};
 
-    /// An app that never touches the real best-times file.
+    /// An app that never touches the real files.
     fn app(difficulty: Difficulty) -> App {
-        App::new(difficulty, BestTimes::default(), None)
+        App::new(
+            difficulty,
+            crate::storage::in_memory(BestTimes::default()),
+            crate::storage::in_memory(Settings::default()),
+        )
     }
 
     fn board_size(app: &App) -> (usize, usize) {
@@ -421,9 +489,9 @@ mod tests {
     #[test]
     fn records_survive_a_change_of_difficulty() {
         let mut app = app(Difficulty::Beginner);
-        app.best_times.record(Difficulty::Beginner, 42);
+        app.best_times.value.record(Difficulty::Beginner, 42);
         app.apply(Command::Start(Difficulty::Expert));
-        assert_eq!(app.best_times.get(Difficulty::Beginner), Some(42));
+        assert_eq!(app.best_times.value.get(Difficulty::Beginner), Some(42));
     }
 
     /// Regression: choosing a difficulty in the menu happens on the button *press*; the
@@ -561,5 +629,53 @@ mod tests {
         assert_eq!(app.game.number(), 482_913);
         assert_eq!(board_size(&app), (16, 16));
         assert!(!app.ranked);
+    }
+
+    fn help_commands(app: &App) -> Vec<Command> {
+        app.menu_layout.menus[1].items.iter().map(|item| item.command).collect()
+    }
+
+    #[test]
+    fn the_update_toggle_is_in_the_menu_only_if_this_build_can_check() {
+        let app = app(Difficulty::Beginner);
+        assert_eq!(
+            help_commands(&app).contains(&Command::ToggleUpdateCheck),
+            UpdateCheck::is_supported()
+        );
+        assert!(
+            !help_commands(&app).contains(&Command::OpenUpdatePage),
+            "nothing found yet"
+        );
+    }
+
+    #[test]
+    fn a_found_update_is_told_and_gets_a_menu_item() {
+        let mut app = app(Difficulty::Beginner);
+        let newer = Version {
+            major: 99,
+            minor: 0,
+            patch: 0,
+        };
+        app.show_update(newer);
+
+        assert!(help_commands(&app).contains(&Command::OpenUpdatePage));
+        assert!(app.toast.as_ref().is_some_and(|toast| toast.text().contains("99.0.0")));
+
+        app.apply(Command::Start(Difficulty::Expert));
+        assert!(
+            help_commands(&app).contains(&Command::OpenUpdatePage),
+            "the item survives the menu being rebuilt for a new window width"
+        );
+    }
+
+    #[test]
+    fn the_update_check_setting_toggles() {
+        let mut app = app(Difficulty::Beginner);
+        assert!(app.settings.value.check_for_updates, "on by default");
+        app.apply(Command::ToggleUpdateCheck);
+        assert!(!app.settings.value.check_for_updates);
+        assert!(app.toast.is_some(), "the player is told");
+        app.apply(Command::ToggleUpdateCheck);
+        assert!(app.settings.value.check_for_updates);
     }
 }

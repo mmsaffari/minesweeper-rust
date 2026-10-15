@@ -16,6 +16,14 @@ The executable isn't code-signed, so Windows SmartScreen will warn the first tim
 ("Windows protected your PC" → **More info** → **Run anyway**). On a PC with
 Smart App Control turned on, Windows may refuse to run it at all; build it from source instead.
 
+### Update check
+
+The release build looks for a newer release **once at startup**: one request to
+`api.github.com` for this repository's latest release, nothing else sent or stored. If there is
+one, it says so and **Help → Get new version...** opens the release page; it never downloads
+anything itself. Turn it off with **Help → Check for updates**. Builds from source don't check
+unless you ask for it: `cargo run --release --features update-check`.
+
 ## How to play
 
 Open every cell that isn't a mine. A number tells you how many of the 8 surrounding cells are mines.
@@ -64,6 +72,7 @@ probably drawing in software; `export GALLIUM_DRIVER=d3d12` makes it use the GPU
 
 ```bash
 cargo test                              # all tests (game rules, layout, input, best times)
+cargo test --all-features               # the same, with the update check compiled in
 cargo lint                              # clippy on everything, warnings included (alias in .cargo/config.toml)
 cargo fmt                               # format (settings in rustfmt.toml)
 ```
@@ -79,15 +88,18 @@ src/
 ├── app.rs       the running program: game, layout, menu, input routing
 ├── logic/       the game rules, with no graphics at all: board, cells, mines, winning/losing
 ├── ui/          everything on screen: layout, drawing, mouse/keyboard, header, menu
-├── scores/      best times, saved as JSON in the user's data folder
-└── solver/      the board as the player sees it: the text export and the hint
+├── scores/      best times
+├── config/      settings (the update check on or off)
+├── storage/     saving any of those as JSON in the user's data folder
+├── solver/      the board as the player sees it: the text export and the hint
+└── updates/     the startup check for a newer release (`update-check` feature)
 ```
 
 One type (or one function) per file. Logic and layout code is unit-tested; only the
 drawing itself (which needs a window) isn't.
 
-Best times are stored in `~/.local/share/minesweeper-rust/best_times.json` on Linux and
-`%APPDATA%\minesweeper-rust\data\best_times.json` on Windows.
+Best times and settings (`best_times.json`, `settings.json`) are stored in
+`~/.local/share/minesweeper-rust/` on Linux and `%APPDATA%\minesweeper-rust\data\` on Windows.
 
 ## License
 

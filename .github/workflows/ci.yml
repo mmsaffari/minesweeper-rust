@@ -53,3 +53,7 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
 
       - run: cargo test
+
+      # Again with the update check (and its HTTP library) compiled in, as in the release build.
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --all-features

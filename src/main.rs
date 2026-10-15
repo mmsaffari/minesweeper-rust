@@ -3,16 +3,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod config;
 mod logic;
 mod scores;
 mod solver;
+mod storage;
 mod ui;
+mod updates;
 
 use macroquad::miniquad::conf::Icon;
 use macroquad::prelude::*;
 
 use crate::app::App;
 use crate::logic::Difficulty;
+use crate::storage::Stored;
 use crate::ui::{BoardLayout, Fonts, app_icon_rgba, window_size};
 
 /// Runs before `main`, so it can't see the `App`: it only needs the starting window size.
@@ -40,12 +44,10 @@ fn window_icon() -> Icon {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let best_times_path = scores::default_path();
-    let best_times = best_times_path
-        .as_deref()
-        .map(scores::load_or_default)
-        .unwrap_or_default();
-    let mut app = App::new(Difficulty::default(), best_times, best_times_path);
+    let best_times = Stored::load("best_times.json");
+    let settings = Stored::load("settings.json");
+    let mut app = App::new(Difficulty::default(), best_times, settings);
+    app.start_update_check();
     let fonts = Fonts::load();
 
     loop {

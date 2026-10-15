@@ -1,6 +1,6 @@
 use macroquad::math::{Rect, Vec2};
 
-use super::{Command, MenuColumn, MenuItem, theme};
+use super::{Command, MenuColumn, MenuItem, MenuOptions, theme};
 use crate::logic::Difficulty;
 
 /// The menu bar across the top of the window, and every menu in it, left to right.
@@ -23,19 +23,32 @@ const GAME: [Entry; 8] = [
     ("Copy board", "Ctrl+C", Command::CopyBoard),
 ];
 
-const HELP: [Entry; 1] = [("About Minesweeper", "F1", Command::About)];
+const ABOUT: Entry = ("About Minesweeper", "F1", Command::About);
+const UPDATE_TOGGLE: Entry = ("Check for updates", "", Command::ToggleUpdateCheck);
+const UPDATE_PAGE: Entry = ("Get new version...", "", Command::OpenUpdatePage);
 
-const MENUS: [(&str, &[Entry]); 2] = [("Game", &GAME), ("Help", &HELP)];
+/// Every menu's title and entries. The Help menu changes with `options`, so unlike the
+/// Game menu it can't be a `const`: it's built here, in a `Vec`.
+fn menus(options: MenuOptions) -> [(&'static str, Vec<Entry>); 2] {
+    let mut help = vec![ABOUT];
+    if options.update_toggle {
+        help.push(UPDATE_TOGGLE);
+    }
+    if options.update_available {
+        help.push(UPDATE_PAGE);
+    }
+    [("Game", GAME.to_vec()), ("Help", help)]
+}
 
 impl MenuLayout {
-    pub fn new(window_width: f32) -> Self {
+    pub fn new(window_width: f32, options: MenuOptions) -> Self {
         let bar_h = theme::MENU_BAR_HEIGHT;
         let item_h = theme::MENU_ITEM_HEIGHT;
 
-        let menus = MENUS
-            .iter()
+        let menus = menus(options)
+            .into_iter()
             .enumerate()
-            .map(|(i, &(title, entries))| {
+            .map(|(i, (title, entries))| {
                 let title_rect = Rect::new(i as f32 * theme::MENU_TITLE_WIDTH, 0.0, theme::MENU_TITLE_WIDTH, bar_h);
                 // Open below its title, but pushed left if it would stick out of the window.
                 let x = title_rect.x.min(window_width - theme::MENU_WIDTH).max(0.0);
@@ -80,7 +93,16 @@ mod tests {
     }
 
     fn layout() -> MenuLayout {
-        MenuLayout::new(beginner_window().x)
+        MenuLayout::new(beginner_window().x, MenuOptions::default())
+    }
+
+    /// With every optional item: the biggest the menus get.
+    fn full_layout() -> MenuLayout {
+        let options = MenuOptions {
+            update_toggle: true,
+            update_available: true,
+        };
+        MenuLayout::new(beginner_window().x, options)
     }
 
     fn commands(menu: &MenuColumn) -> Vec<Command> {
@@ -127,8 +149,25 @@ mod tests {
     }
 
     #[test]
+    fn the_update_items_appear_only_when_asked_for() {
+        let toggle_only = MenuOptions {
+            update_toggle: true,
+            update_available: false,
+        };
+        assert_eq!(
+            commands(&MenuLayout::new(beginner_window().x, toggle_only).menus[1]),
+            [Command::About, Command::ToggleUpdateCheck]
+        );
+        assert_eq!(
+            commands(&full_layout().menus[1]),
+            [Command::About, Command::ToggleUpdateCheck, Command::OpenUpdatePage]
+        );
+        assert_eq!(full_layout().menus[0], layout().menus[0], "the Game menu never changes");
+    }
+
+    #[test]
     fn items_are_stacked_directly_below_the_bar() {
-        for menu in &layout().menus {
+        for menu in &full_layout().menus {
             let mut expected_top = theme::MENU_BAR_HEIGHT;
             for item in &menu.items {
                 assert_eq!(item.rect.top(), expected_top, "{} leaves a gap or overlaps", item.label);
@@ -166,7 +205,7 @@ mod tests {
     #[test]
     fn every_dropdown_fits_even_in_the_smallest_window() {
         let window = beginner_window();
-        for menu in &layout().menus {
+        for menu in &full_layout().menus {
             assert!(menu.dropdown.left() >= 0.0, "{} starts left of the window", menu.title);
             assert!(
                 menu.dropdown.right() <= window.x,

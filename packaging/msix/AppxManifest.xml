@@ -35,7 +35,7 @@
     <Application Id="Minesweeper" Executable="minesweeper.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="{{DisplayName}}"
-        Description="The classic Windows Minesweeper, rebuilt in Rust"
+        Description="The classic Minesweeper, rebuilt in Rust"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />

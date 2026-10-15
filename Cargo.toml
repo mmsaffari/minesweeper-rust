@@ -2,7 +2,7 @@
 name = "minesweeper"
 version = "1.4.0"
 edition = "2024"
-description = "The classic Windows Minesweeper, rebuilt in Rust with macroquad"
+description = "The classic Minesweeper, rebuilt in Rust with macroquad"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/mmsaffari/minesweeper-rust"
 

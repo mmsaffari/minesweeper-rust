@@ -120,20 +120,27 @@ impl App {
     pub fn apply(&mut self, command: Command) -> Option<Vec2> {
         match command {
             Command::NewGame => {
-                self.game = Game::new(self.difficulty);
-                self.win_recorded = false;
+                self.start_new_game();
                 None
             }
             Command::Start(difficulty) => {
                 let resized = difficulty != self.difficulty;
-                // The records survive a new difficulty: take them out of the old App before
-                // it's replaced. `mem::take` leaves an empty `BestTimes::default()` behind.
-                let best_times = std::mem::take(&mut self.best_times);
-                let best_times_path = self.best_times_path.take();
-                *self = App::new(difficulty, best_times, best_times_path);
+                // Replace only what depends on the difficulty. Everything else must survive,
+                // above all `menu_owns_mouse`: the click that chose this difficulty is still
+                // held down, and its release must not reach the new board.
+                self.difficulty = difficulty;
+                self.layout = BoardLayout::for_difficulty(difficulty);
+                self.header = HeaderLayout::above(self.layout.rect());
+                self.menu_layout = MenuLayout::new(self.window_size().x);
+                self.start_new_game();
                 resized.then(|| self.window_size())
             }
         }
+    }
+
+    fn start_new_game(&mut self) {
+        self.game = Game::new(self.difficulty);
+        self.win_recorded = false;
     }
 
     pub fn draw(&self, fonts: &Fonts) {
@@ -219,5 +226,15 @@ mod tests {
         app.best_times.record(Difficulty::Beginner, 42);
         app.apply(Command::Start(Difficulty::Expert));
         assert_eq!(app.best_times.get(Difficulty::Beginner), Some(42));
+    }
+
+    /// Regression: choosing a difficulty in the menu happens on the button *press*; the
+    /// *release* comes a frame later, over the new board, and must not open a cell there.
+    #[test]
+    fn a_menu_click_keeps_owning_the_mouse_across_a_change_of_difficulty() {
+        let mut app = app(Difficulty::Beginner);
+        app.menu_owns_mouse = true; // the press landed on "Expert" in the menu
+        app.apply(Command::Start(Difficulty::Expert));
+        assert!(!app.board_enabled(), "the release of that click would open a cell");
     }
 }

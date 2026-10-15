@@ -3,8 +3,8 @@ mod ui;
 use macroquad::prelude::*;
 
 use crate::{
-    logic::{Difficulty, Game, Position},
-    ui::{BoardLayout, Fonts, draw_board, theme},
+    logic::{Difficulty, Game},
+    ui::{BoardLayout, ClickTracker, Fonts, draw_board, handle_mouse, theme},
 };
 
 const DIFFICULTY: Difficulty = Difficulty::Beginner;
@@ -32,13 +32,15 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut game = Game::with_seed(DIFFICULTY, 1);
-    game.reveal(Position::new(1, 1));
+    let mut game = Game::new(DIFFICULTY);
+    let mut tracker = ClickTracker::default();
 
     let layout = layout_for(DIFFICULTY);
     let fonts = Fonts::load();
 
     loop {
+        handle_mouse(&mut game, &layout, &mut tracker);
+
         clear_background(theme::BACKGROUND);
         draw_board(&game, &layout, &fonts.cell);
         next_frame().await

@@ -15,7 +15,8 @@
       C runtime built into the .exe, so the package doesn't depend on the VC++ runtime.
    2. Put the .exe, the licenses and the logos (examples/store_logos.rs) in one folder.
    3. Fill in AppxManifest.xml.
-   4. MakePri: index the logos, so Windows can pick the right size for each screen.
+   4. MakePri: index the logos (into one resources.pri), so Windows can pick the right size
+      for each screen.
    5. MakeAppx: pack the folder into the .msix.
 #>
 $ErrorActionPreference = 'Stop'
@@ -89,6 +90,12 @@ Write-Output "Windows SDK tools: $sdkBin"
 $priConfig = "$out/priconfig.xml"
 & "$sdkBin\makepri.exe" createconfig /cf $priConfig /dq en-US /pv 10.0.0 /o
 Assert-Success 'MakePri createconfig'
+# By default MakePri splits each scale into its own .pri, for bundles that install only the
+# scale a PC needs. One plain .msix must carry all of them in one resources.pri.
+$config = [xml](Get-Content $priConfig -Raw)
+$split = $config.SelectSingleNode('//packaging')
+if ($split) { [void]$split.ParentNode.RemoveChild($split) }
+$config.Save((Resolve-Path $priConfig))
 & "$sdkBin\makepri.exe" new /pr $package /cf $priConfig /mn "$package/AppxManifest.xml" /of "$package/resources.pri" /o
 Assert-Success 'MakePri new'
 

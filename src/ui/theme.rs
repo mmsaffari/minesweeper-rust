@@ -15,6 +15,14 @@ pub const SIDE_MARGIN: f32 = 12.0;
 pub const TOP_MARGIN: f32 = 60.0;
 pub const BOTTOM_MARGIN: f32 = 12.0;
 
+/// The strip above the board: counter, face button, timer.
+pub const HEADER_HEIGHT: f32 = 36.0;
+/// Width of the mine counter and the timer (3 digits each).
+pub const LED_WIDTH: f32 = 64.0;
+pub const LED_FONT_SIZE: u16 = 24;
+pub const LED_BEVEL: f32 = 2.0;
+pub const BUTTON_BEVEL: f32 = 2.0;
+
 pub const BACKGROUND: Color = Color::from_rgba(0xC0, 0xC0, 0xC0, 0xFF);
 pub const BEVEL_LIGHT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 pub const BEVEL_DARK: Color = Color::from_rgba(0x80, 0x80, 0x80, 0xFF);
@@ -26,6 +34,13 @@ pub const MINE: Color = Color::from_rgba(0x00, 0x00, 0x00, 0xFF);
 pub const MINE_SHINE: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 /// Background of the mine that was clicked, and the cross over a wrong flag.
 pub const EXPLODED: Color = Color::from_rgba(0xFF, 0x00, 0x00, 0xFF);
+
+pub const LED_BACKGROUND: Color = Color::from_rgba(0x00, 0x00, 0x00, 0xFF);
+pub const LED_ON: Color = Color::from_rgba(0xFF, 0x00, 0x00, 0xFF);
+/// The unlit segments, faintly visible like on a real LED display.
+pub const LED_OFF: Color = Color::from_rgba(0x40, 0x00, 0x00, 0xFF);
+pub const FACE_YELLOW: Color = Color::from_rgba(0xFF, 0xFF, 0x00, 0xFF);
+pub const FACE_INK: Color = Color::from_rgba(0x00, 0x00, 0x00, 0xFF);
 
 /// The classic colour for each number. 0 is never drawn.
 pub fn number_color(adjacent_mines: u8) -> Color {

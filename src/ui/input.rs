@@ -1,7 +1,9 @@
-use macroquad::input::{MouseButton, is_mouse_button_pressed, is_mouse_button_released, mouse_position};
+use macroquad::input::{
+    MouseButton, is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released, mouse_position,
+};
 use macroquad::math::Vec2;
 
-use super::{BoardLayout, ClickTracker, MouseAction};
+use super::{BoardLayout, ClickTracker, HeaderLayout, MouseAction};
 use crate::logic::Game;
 
 /// Reads this frame's mouse button events and applies them to the game.
@@ -15,6 +17,16 @@ pub fn handle_mouse(game: &mut Game, layout: &BoardLayout, tracker: &mut ClickTr
             apply(tracker.release(button), game, layout);
         }
     }
+}
+
+/// The face button was clicked (released over it) this frame: time for a new game.
+pub fn face_clicked(header: &HeaderLayout) -> bool {
+    is_mouse_button_released(MouseButton::Left) && header.face.contains(Vec2::from(mouse_position()))
+}
+
+/// The left button is held down over the board, which makes the face look surprised.
+pub fn pressing_board(layout: &BoardLayout) -> bool {
+    is_mouse_button_down(MouseButton::Left) && layout.position_at(Vec2::from(mouse_position())).is_some()
 }
 
 /// Turns "what" (the action) into "where" (the cell under the mouse) and tells the game.

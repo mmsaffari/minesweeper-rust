@@ -87,6 +87,7 @@ impl Game {
         if self.all_safe_cells_revealed() {
             self.status = GameStatus::Won;
             self.ended_at = Some(Instant::now());
+            self.flag_all_mines();
         }
     }
 
@@ -168,6 +169,15 @@ impl Game {
                         to_visit.extend(self.board.neighbours(pos));
                     }
                 }
+            }
+        }
+    }
+
+    /// Like the original: winning puts a flag on every mine, so the counter shows 0.
+    fn flag_all_mines(&mut self) {
+        for cell in self.board.cells.iter_mut().flatten() {
+            if cell.is_mine {
+                cell.state = CellState::Flagged;
             }
         }
     }
@@ -438,7 +448,11 @@ mod tests {
         fn a_flood_can_win_in_one_click() {
             let mut game = game(3, 3, &[p(0, 0)]);
             game.reveal(p(2, 2));
-            assert_eq!(picture(&game), ["#1.", "11.", "..."]);
+            assert_eq!(
+                picture(&game),
+                ["F1.", "11.", "..."],
+                "the mine gets its flag on the win"
+            );
             assert_eq!(game.status(), GameStatus::Won);
         }
 
@@ -457,7 +471,32 @@ mod tests {
             game.reveal(p(0, 2));
             game.reveal(p(0, 1)); // the mine — must be ignored now
             assert_eq!(game.status(), GameStatus::Won);
-            assert_eq!(state_at(&game, p(0, 1)), CellState::Hidden);
+            assert_eq!(
+                state_at(&game, p(0, 1)),
+                CellState::Flagged,
+                "flagged by the win, not opened"
+            );
+        }
+
+        #[test]
+        fn winning_flags_every_mine() {
+            let mut game = walled_game(); // 5 mines across row 2
+            game.toggle_mark(p(2, 0)); // already flagged: stays flagged
+            game.toggle_mark(p(2, 1));
+            game.toggle_mark(p(2, 1)); // a question mark: becomes a flag
+            game.reveal(p(0, 0));
+            game.reveal(p(4, 4));
+            assert_eq!(game.status(), GameStatus::Won);
+            assert_eq!(picture(&game), [".....", "23332", "FFFFF", "23332", "....."]);
+            assert_eq!(game.mines_left(), 0);
+        }
+
+        #[test]
+        fn losing_does_not_flag_anything() {
+            let mut game = walled_game();
+            game.reveal(p(2, 2));
+            assert_eq!(game.status(), GameStatus::Lost);
+            assert_eq!(game.mines_left(), 5);
         }
     }
 

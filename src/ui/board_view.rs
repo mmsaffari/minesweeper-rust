@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 
 use super::BoardLayout;
+use super::bevel;
 use super::theme;
 use crate::logic::{Cell, CellState, Game, GameStatus, Position};
 
@@ -18,19 +19,7 @@ pub fn draw_board(game: &Game, layout: &BoardLayout, font: &Font) {
         }
     }
 
-    draw_sunken_frame(layout.rect());
-}
-
-/// The board sits "in" the window: dark edge top/left, light edge bottom/right, just outside
-/// the cells (the opposite of a raised cell). It also closes the board's right and bottom
-/// edges, which the cells don't draw, because each cell only draws its own top/left grid line.
-fn draw_sunken_frame(board: Rect) {
-    let b = theme::BEVEL;
-    let Rect { x, y, w, h } = Rect::new(board.x - b, board.y - b, board.w + 2.0 * b, board.h + 2.0 * b);
-    draw_rectangle(x, y, w, b, theme::BEVEL_DARK); // top
-    draw_rectangle(x, y, b, h, theme::BEVEL_DARK); // left
-    draw_rectangle(x, y + h - b, w, b, theme::BEVEL_LIGHT); // bottom
-    draw_rectangle(x + w - b, y, b, h, theme::BEVEL_LIGHT); // right
+    bevel::draw_sunken_border(layout.rect(), theme::BEVEL);
 }
 
 fn draw_cell(cell: &Cell, rect: Rect, lost: bool, font: &Font) {
@@ -77,15 +66,9 @@ fn draw_revealed(cell: &Cell, rect: Rect, font: &Font) {
     }
 }
 
-/// A hidden cell: light edges top/left, dark edges bottom/right, so it looks like a button.
+/// A hidden cell: raised like a button.
 fn draw_raised(rect: Rect) {
-    let Rect { x, y, w, h } = rect;
-    let b = theme::BEVEL;
-    draw_rectangle(x, y, w, h, theme::BACKGROUND);
-    draw_rectangle(x, y, w, b, theme::BEVEL_LIGHT); // top
-    draw_rectangle(x, y, b, h, theme::BEVEL_LIGHT); // left
-    draw_rectangle(x, y + h - b, w, b, theme::BEVEL_DARK); // bottom
-    draw_rectangle(x + w - b, y, b, h, theme::BEVEL_DARK); // right
+    bevel::draw_raised(rect, theme::BEVEL, theme::BACKGROUND);
 }
 
 /// An opened cell: flat, with a thin grid line on its top and left.

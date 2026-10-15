@@ -1,14 +1,23 @@
+mod bevel;
 mod board_layout;
 mod board_view;
 mod click_tracker;
+mod face;
 mod fonts;
+mod header_layout;
+mod header_view;
 mod input;
+mod led_digits;
 mod mouse_action;
 pub mod theme;
 
 pub use board_layout::BoardLayout;
 pub use board_view::draw_board;
 pub use click_tracker::ClickTracker;
+pub use face::Face;
 pub use fonts::Fonts;
-pub use input::handle_mouse;
+pub use header_layout::HeaderLayout;
+pub use header_view::draw_header;
+pub use input::{face_clicked, handle_mouse, pressing_board};
+pub use led_digits::led_digits;
 pub use mouse_action::MouseAction;

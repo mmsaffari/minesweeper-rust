@@ -1,7 +1,7 @@
 {
   "_where": "Partner Center → Apps and games → the app → Product management → Product identity",
-  "IdentityName": "TODO Package/Identity/Name",
-  "Publisher": "TODO Package/Identity/Publisher (starts with CN=)",
-  "PublisherDisplayName": "TODO Package/Properties/PublisherDisplayName",
-  "DisplayName": "TODO the reserved app name"
+  "IdentityName": "Apadana.ClassicMineSweeper",
+  "Publisher": "CN=22D47AAB-1BFC-4A9A-AB7B-1FC1BD022CF5",
+  "PublisherDisplayName": "Apadana",
+  "DisplayName": "Classic Mine Sweeper"
 }

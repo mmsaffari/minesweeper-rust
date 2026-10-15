@@ -3,7 +3,7 @@ use macroquad::prelude::*;
 use super::BoardLayout;
 use super::bevel;
 use super::theme;
-use crate::logic::{Cell, CellState, Game, GameStatus, Position};
+use crate::logic::{Cell, CellContent, CellState, Game, GameStatus, Position};
 
 /// Draws every cell of the board. Only reads the game; changing it is the input's job.
 pub fn draw_board(game: &Game, layout: &BoardLayout, font: &Font) {
@@ -53,14 +53,15 @@ fn draw_cell(cell: &Cell, rect: Rect, lost: bool, font: &Font) {
 }
 
 fn draw_revealed(cell: &Cell, rect: Rect, font: &Font) {
-    if cell.is_mine() {
-        // The only revealed mine is the one that was clicked.
-        draw_flat(rect, theme::EXPLODED);
-        draw_mine(rect);
-    } else {
-        draw_flat(rect, theme::BACKGROUND);
-        let n = cell.adjacent_mines();
-        if n > 0 {
+    match cell.content() {
+        CellContent::Mine => {
+            // The only revealed mine is the one that was clicked.
+            draw_flat(rect, theme::EXPLODED);
+            draw_mine(rect);
+        }
+        CellContent::Empty { adjacent_mines: 0 } => draw_flat(rect, theme::BACKGROUND),
+        CellContent::Empty { adjacent_mines: n } => {
+            draw_flat(rect, theme::BACKGROUND);
             draw_centered_text(&n.to_string(), rect, theme::number_color(n), font);
         }
     }

@@ -1,7 +1,6 @@
-use std::collections::HashSet;
-
 use super::BoardProperties;
 use super::Cell;
+use super::CellContent;
 use super::Position;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,11 +63,25 @@ impl Board {
 
     /// Call once, on a fresh board. Panics if a position is off the board.
     pub fn place_mines(&mut self, mines: &[Position]) {
-        let unique_mines = mines.iter().copied().collect::<HashSet<Position>>();
-        for pos in unique_mines {
-            self.cells[pos.row][pos.col].is_mine = true;
-            for n_pos in self.neighbours(pos) {
-                self.cells[n_pos.row][n_pos.col].adjacent_mines += 1;
+        // Pass 1: put the mines down. Listing a position twice is harmless.
+        for pos in mines {
+            self.cells[pos.row][pos.col].content = CellContent::Mine;
+        }
+
+        // Pass 2: every empty cell counts the mines around it. This counts what is actually
+        // on the board, not what was in the list, so duplicates can't be counted twice.
+        for row in 0..self.rows {
+            for col in 0..self.cols {
+                let count = self
+                    .neighbours(Position::new(row, col))
+                    .into_iter()
+                    .filter(|n| self.cells[n.row][n.col].is_mine())
+                    .count();
+
+                // Only an `Empty` cell has a count to set; for a `Mine` there is no field to write.
+                if let CellContent::Empty { adjacent_mines } = &mut self.cells[row][col].content {
+                    *adjacent_mines = u8::try_from(count).expect("a cell has at most 8 neighbours");
+                }
             }
         }
     }
@@ -115,12 +128,20 @@ mod tests {
         assert_eq!(actual, expected, "wrong neighbours for {pos:?}");
     }
 
-    /// The whole grid of `adjacent_mines`, so one assert can compare a full board.
-    fn adjacent_counts(board: &Board) -> Vec<Vec<u8>> {
+    /// What's under every cell, one string per row: `*` for a mine, otherwise the count
+    /// (including 0), so one assert can compare a whole board.
+    fn contents(board: &Board) -> Vec<String> {
         board
             .cells
             .iter()
-            .map(|row| row.iter().map(|cell| cell.adjacent_mines).collect())
+            .map(|row| {
+                row.iter()
+                    .map(|cell| match cell.content {
+                        CellContent::Mine => '*',
+                        CellContent::Empty { adjacent_mines } => char::from(b'0' + adjacent_mines),
+                    })
+                    .collect()
+            })
             .collect()
     }
 
@@ -128,7 +149,7 @@ mod tests {
         let mut mines = HashSet::new();
         for (row, cells) in board.cells.iter().enumerate() {
             for (col, cell) in cells.iter().enumerate() {
-                if cell.is_mine {
+                if cell.is_mine() {
                     mines.insert(p(row, col));
                 }
             }
@@ -264,38 +285,22 @@ mod tests {
     fn place_mines_counts_adjacent_mines_on_every_cell() {
         let mut board = board(3, 3);
         board.place_mines(&[p(0, 0), p(2, 2)]);
-        #[rustfmt::skip]
-        let expected = vec![
-            vec![0, 1, 0],
-            vec![1, 2, 1],
-            vec![0, 1, 0],
-        ];
-        assert_eq!(adjacent_counts(&board), expected);
+        assert_eq!(contents(&board), ["*10", "121", "01*"]);
     }
 
+    /// The point of `CellContent`: a mine is just a mine, it has no count of its own.
     #[test]
-    fn mines_next_to_each_other_count_each_other() {
+    fn mines_next_to_each_other_have_no_count_of_their_own() {
         let mut board = board(3, 3);
         board.place_mines(&[p(0, 0), p(0, 1)]);
-        #[rustfmt::skip]
-        let expected = vec![
-            vec![1, 1, 1],
-            vec![2, 2, 1],
-            vec![0, 0, 0],
-        ];
-        assert_eq!(adjacent_counts(&board), expected);
+        assert_eq!(contents(&board), ["**1", "221", "000"]);
     }
 
     #[test]
     fn place_mines_works_on_non_square_board() {
         let mut board = board(2, 4);
         board.place_mines(&[p(1, 3)]);
-        #[rustfmt::skip]
-        let expected = vec![
-            vec![0, 0, 1, 1],
-            vec![0, 0, 1, 0],
-        ];
-        assert_eq!(adjacent_counts(&board), expected);
+        assert_eq!(contents(&board), ["0011", "001*"]);
         assert_eq!(mine_positions(&board), HashSet::from([p(1, 3)]));
     }
 
@@ -304,19 +309,13 @@ mod tests {
         let mut board = example_board();
         board.place_mines(&[]);
         assert!(mine_positions(&board).is_empty());
-        assert!(all_cells(&board).all(|cell| cell.adjacent_mines == 0));
+        assert!(all_cells(&board).all(|cell| cell.content == CellContent::Empty { adjacent_mines: 0 }));
     }
 
     #[test]
     fn duplicate_positions_count_as_one_mine() {
         let mut board = board(3, 3);
         board.place_mines(&[p(1, 1), p(1, 1)]);
-        #[rustfmt::skip]
-        let expected = vec![
-            vec![1, 1, 1],
-            vec![1, 0, 1],
-            vec![1, 1, 1],
-        ];
-        assert_eq!(adjacent_counts(&board), expected);
+        assert_eq!(contents(&board), ["111", "1*1", "111"]);
     }
 }

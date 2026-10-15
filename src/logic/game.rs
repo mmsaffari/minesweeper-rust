@@ -1,5 +1,6 @@
 use super::Board;
 use super::BoardProperties;
+use super::CellContent;
 use super::CellState;
 use super::Difficulty;
 use super::GameStatus;
@@ -68,14 +69,14 @@ impl Game {
 
         cell.reveal();
 
-        if cell.is_mine {
-            self.status = GameStatus::Lost;
-            self.ended_at = Some(Instant::now());
-            return;
-        }
-
-        if cell.adjacent_mines == 0 {
-            self.flood_reveal(pos);
+        match cell.content {
+            CellContent::Mine => {
+                self.status = GameStatus::Lost;
+                self.ended_at = Some(Instant::now());
+                return;
+            }
+            CellContent::Empty { adjacent_mines: 0 } => self.flood_reveal(pos),
+            CellContent::Empty { .. } => {}
         }
 
         if self.all_safe_cells_revealed() {
@@ -108,7 +109,11 @@ impl Game {
         if cell.state != CellState::Revealed {
             return;
         }
-        let wanted = usize::from(cell.adjacent_mines);
+        // An opened mine has no count (and the game would already be lost anyway).
+        let CellContent::Empty { adjacent_mines } = cell.content else {
+            return;
+        };
+        let wanted = usize::from(adjacent_mines);
         let neighbours = self.board.neighbours(pos);
         let flagged_neighbor_count = neighbours
             .iter()
@@ -159,7 +164,7 @@ impl Game {
                 CellState::Revealed | CellState::Flagged => continue,
                 CellState::Hidden | CellState::Questioned => {
                     cell.reveal();
-                    if cell.adjacent_mines == 0 {
+                    if cell.content == (CellContent::Empty { adjacent_mines: 0 }) {
                         to_visit.extend(self.board.neighbours(pos));
                     }
                 }
@@ -170,7 +175,7 @@ impl Game {
     /// Like the original: winning puts a flag on every mine, so the counter shows 0.
     fn flag_all_mines(&mut self) {
         for cell in self.board.cells.iter_mut().flatten() {
-            if cell.is_mine {
+            if cell.is_mine() {
                 cell.state = CellState::Flagged;
             }
         }
@@ -181,7 +186,7 @@ impl Game {
             .cells
             .iter()
             .flatten()
-            .all(|cell| cell.is_mine || cell.state == CellState::Revealed)
+            .all(|cell| cell.is_mine() || cell.state == CellState::Revealed)
     }
 }
 
@@ -214,7 +219,12 @@ mod tests {
     }
 
     fn mine_count(game: &Game) -> usize {
-        game.board().cells.iter().flatten().filter(|cell| cell.is_mine).count()
+        game.board()
+            .cells
+            .iter()
+            .flatten()
+            .filter(|cell| cell.is_mine())
+            .count()
     }
 
     /// The board as the player would see it, one string per row:
@@ -229,9 +239,11 @@ mod tests {
                         CellState::Hidden => '#',
                         CellState::Flagged => 'F',
                         CellState::Questioned => '?',
-                        CellState::Revealed if cell.is_mine => '*',
-                        CellState::Revealed if cell.adjacent_mines == 0 => '.',
-                        CellState::Revealed => char::from(b'0' + cell.adjacent_mines),
+                        CellState::Revealed => match cell.content {
+                            CellContent::Mine => '*',
+                            CellContent::Empty { adjacent_mines: 0 } => '.',
+                            CellContent::Empty { adjacent_mines } => char::from(b'0' + adjacent_mines),
+                        },
                     })
                     .collect()
             })

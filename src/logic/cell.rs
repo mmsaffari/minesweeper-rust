@@ -1,9 +1,10 @@
-use super::CellState;
+use super::{CellContent, CellState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Cell {
-    pub(super) is_mine: bool,
-    pub(super) adjacent_mines: u8,
+    /// What's under the cell (fixed once the mines are placed).
+    pub(super) content: CellContent,
+    /// What the player sees and has done to it (changes with every click).
     pub(super) state: CellState,
 }
 
@@ -13,12 +14,13 @@ impl Cell {
         self.state
     }
 
-    pub fn is_mine(&self) -> bool {
-        self.is_mine
+    pub fn content(&self) -> CellContent {
+        self.content
     }
 
-    pub fn adjacent_mines(&self) -> u8 {
-        self.adjacent_mines
+    /// Shortcut for the most common question about the content.
+    pub fn is_mine(&self) -> bool {
+        self.content.is_mine()
     }
 
     pub fn cycle_mark(&mut self) {
@@ -58,15 +60,20 @@ mod tests {
 
     #[test]
     fn getters_return_the_fields() {
-        let cell = Cell {
-            is_mine: true,
-            adjacent_mines: 3,
+        let mine = Cell {
+            content: CellContent::Mine,
             state: Flagged,
         };
         assert_eq!(
-            (cell.state(), cell.is_mine(), cell.adjacent_mines()),
-            (Flagged, true, 3)
+            (mine.state(), mine.content(), mine.is_mine()),
+            (Flagged, CellContent::Mine, true)
         );
+
+        let three = Cell {
+            content: CellContent::Empty { adjacent_mines: 3 },
+            state: Revealed,
+        };
+        assert!(!three.is_mine());
     }
 
     // --- default ---
@@ -74,8 +81,7 @@ mod tests {
     #[test]
     fn default_cell_is_hidden_mine_free_and_zero_count() {
         let cell = Cell::default();
-        assert!(!cell.is_mine);
-        assert_eq!(cell.adjacent_mines, 0);
+        assert_eq!(cell.content, CellContent::Empty { adjacent_mines: 0 });
         assert_eq!(cell.state, Hidden);
     }
 

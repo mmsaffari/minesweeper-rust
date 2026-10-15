@@ -1,6 +1,7 @@
 mod board;
 mod board_properties;
 mod cell;
+mod cell_content;
 mod cell_state;
 mod difficulty;
 mod game;
@@ -11,6 +12,7 @@ mod position;
 pub use board::Board;
 pub use board_properties::BoardProperties;
 pub use cell::Cell;
+pub use cell_content::CellContent;
 pub use cell_state::CellState;
 pub use difficulty::Difficulty;
 pub use game::Game;

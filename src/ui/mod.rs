@@ -1,6 +1,7 @@
 mod about_dialog;
 mod about_layout;
 mod about_view;
+mod app_icon;
 mod bevel;
 mod board_layout;
 mod board_view;
@@ -29,6 +30,7 @@ mod window_size;
 pub use about_dialog::AboutDialog;
 pub use about_layout::AboutLayout;
 pub use about_view::draw_about;
+pub use app_icon::app_icon_rgba;
 pub use board_layout::BoardLayout;
 pub use board_view::draw_board;
 pub use click_tracker::ClickTracker;

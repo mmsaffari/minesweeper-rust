@@ -7,11 +7,12 @@ mod logic;
 mod scores;
 mod ui;
 
+use macroquad::miniquad::conf::Icon;
 use macroquad::prelude::*;
 
 use crate::app::App;
 use crate::logic::Difficulty;
-use crate::ui::{BoardLayout, Fonts, window_size};
+use crate::ui::{BoardLayout, Fonts, app_icon_rgba, window_size};
 
 /// Runs before `main`, so it can't see the `App`: it only needs the starting window size.
 fn window_conf() -> Conf {
@@ -21,7 +22,18 @@ fn window_conf() -> Conf {
         window_width: size.x as i32,
         window_height: size.y as i32,
         window_resizable: false,
+        icon: Some(window_icon()),
         ..Default::default()
+    }
+}
+
+/// The mine icon in the three sizes miniquad wants. `try_into` turns each `Vec` into the
+/// fixed-size array the `Icon` fields need; it can only fail if the sizes didn't match.
+fn window_icon() -> Icon {
+    Icon {
+        small: app_icon_rgba(16).try_into().expect("16 x 16 RGBA"),
+        medium: app_icon_rgba(32).try_into().expect("32 x 32 RGBA"),
+        big: app_icon_rgba(64).try_into().expect("64 x 64 RGBA"),
     }
 }
 

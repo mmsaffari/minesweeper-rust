@@ -18,3 +18,6 @@ serde_json = "1.0.154"
 lto = true          # optimise across all crates together, not one crate at a time
 codegen-units = 1   # one compilation unit: slower build, better optimisation
 strip = true        # leave debug symbols out of the executable
+
+[build-dependencies]
+winresource = "0.1.34"

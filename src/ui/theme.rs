@@ -62,6 +62,25 @@ pub const MENU_HIGHLIGHT_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 /// The best times in the menu: quieter than the labels.
 pub const MENU_DIM_TEXT: Color = Color::from_rgba(0x60, 0x60, 0x60, 0xFF);
 
+// --- About dialog ---
+
+pub const ABOUT_MAX_WIDTH: f32 = 300.0;
+pub const ABOUT_HEIGHT: f32 = 260.0;
+pub const ABOUT_PADDING: f32 = 10.0;
+pub const ABOUT_TITLE_HEIGHT: f32 = 22.0;
+pub const ABOUT_TITLE_FONT_SIZE: u16 = 14;
+pub const ABOUT_ICON_HEIGHT: f32 = 50.0;
+pub const ABOUT_BUTTON_WIDTH: f32 = 72.0;
+pub const ABOUT_BUTTON_HEIGHT: f32 = 26.0;
+/// Laid over the whole window while a dialog is open, so the dialog stands out.
+pub const DIALOG_SHADE: Color = Color::new(0.0, 0.0, 0.0, 0.35);
+pub const DIALOG_SHADOW: Color = Color::new(0.0, 0.0, 0.0, 0.4);
+/// The Windows 98 title bar: a gradient from navy to light blue, with white text.
+pub const TITLE_BAR_START: Color = Color::from_rgba(0x00, 0x00, 0x80, 0xFF);
+pub const TITLE_BAR_END: Color = Color::from_rgba(0x10, 0x84, 0xD0, 0xFF);
+pub const TITLE_BAR_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
+/// The little star that glints next to the mine in the About dialog.
+pub const SPARKLE: Color = Color::from_rgba(0xFF, 0xE0, 0x40, 0xFF);
 /// The classic colour for each number. 0 is never drawn.
 pub fn number_color(adjacent_mines: u8) -> Color {
     let (r, g, b) = match adjacent_mines {

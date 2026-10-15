@@ -39,6 +39,11 @@ pub fn left_pressed() -> bool {
     is_mouse_button_pressed(MouseButton::Left)
 }
 
+/// The left button was released this frame (where dialog buttons look for clicks).
+pub fn left_released() -> bool {
+    is_mouse_button_released(MouseButton::Left)
+}
+
 pub fn mouse() -> Vec2 {
     Vec2::from(mouse_position())
 }

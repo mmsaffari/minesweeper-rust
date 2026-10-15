@@ -1,61 +1,68 @@
 use macroquad::math::{Rect, Vec2};
 
-use super::{Command, theme};
+use super::{Command, MenuColumn, MenuItem, theme};
 use crate::logic::Difficulty;
 
-/// One line in the dropdown.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MenuItem {
-    pub label: &'static str,
-    /// Shown on the right, like "F2". Same keys as `keyboard.rs`.
-    pub shortcut: &'static str,
-    pub command: Command,
-    pub rect: Rect,
-}
-
-/// The "Game" menu: the bar across the top of the window, its title, and the dropdown below.
+/// The menu bar across the top of the window, and every menu in it, left to right.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MenuLayout {
     pub bar: Rect,
-    pub title: Rect,
-    pub dropdown: Rect,
-    pub items: Vec<MenuItem>,
+    pub menus: Vec<MenuColumn>,
 }
 
-const ENTRIES: [(&str, &str, Command); 4] = [
+type Entry = (&'static str, &'static str, Command);
+
+const GAME: [Entry; 4] = [
     ("New", "F2", Command::NewGame),
     ("Beginner", "1", Command::Start(Difficulty::Beginner)),
     ("Intermediate", "2", Command::Start(Difficulty::Intermediate)),
     ("Expert", "3", Command::Start(Difficulty::Expert)),
 ];
 
+const HELP: [Entry; 1] = [("About Minesweeper", "F1", Command::About)];
+
+const MENUS: [(&str, &[Entry]); 2] = [("Game", &GAME), ("Help", &HELP)];
+
 impl MenuLayout {
     pub fn new(window_width: f32) -> Self {
         let bar_h = theme::MENU_BAR_HEIGHT;
         let item_h = theme::MENU_ITEM_HEIGHT;
 
-        let items: Vec<MenuItem> = ENTRIES
+        let menus = MENUS
             .iter()
             .enumerate()
-            .map(|(i, &(label, shortcut, command))| MenuItem {
-                label,
-                shortcut,
-                command,
-                rect: Rect::new(0.0, bar_h + i as f32 * item_h, theme::MENU_WIDTH, item_h),
+            .map(|(i, &(title, entries))| {
+                let title_rect = Rect::new(i as f32 * theme::MENU_TITLE_WIDTH, 0.0, theme::MENU_TITLE_WIDTH, bar_h);
+                // Open below its title, but pushed left if it would stick out of the window.
+                let x = title_rect.x.min(window_width - theme::MENU_WIDTH).max(0.0);
+                let items = entries
+                    .iter()
+                    .enumerate()
+                    .map(|(row, &(label, shortcut, command))| MenuItem {
+                        label,
+                        shortcut,
+                        command,
+                        rect: Rect::new(x, bar_h + row as f32 * item_h, theme::MENU_WIDTH, item_h),
+                    })
+                    .collect::<Vec<_>>();
+                MenuColumn {
+                    title,
+                    title_rect,
+                    dropdown: Rect::new(x, bar_h, theme::MENU_WIDTH, items.len() as f32 * item_h),
+                    items,
+                }
             })
             .collect();
 
         Self {
             bar: Rect::new(0.0, 0.0, window_width, bar_h),
-            title: Rect::new(0.0, 0.0, theme::MENU_TITLE_WIDTH, bar_h),
-            dropdown: Rect::new(0.0, bar_h, theme::MENU_WIDTH, items.len() as f32 * item_h),
-            items,
+            menus,
         }
     }
 
-    /// The dropdown line under `point`, if any.
-    pub fn item_at(&self, point: Vec2) -> Option<&MenuItem> {
-        self.items.iter().find(|item| item.rect.contains(point))
+    /// Which menu's title is under `point`, by index into `menus`.
+    pub fn title_at(&self, point: Vec2) -> Option<usize> {
+        self.menus.iter().position(|menu| menu.title_rect.contains(point))
     }
 }
 
@@ -68,27 +75,39 @@ mod tests {
         window_size(BoardLayout::for_difficulty(Difficulty::Beginner).rect())
     }
 
-    fn menu() -> MenuLayout {
+    fn layout() -> MenuLayout {
         MenuLayout::new(beginner_window().x)
     }
 
-    #[test]
-    fn bar_spans_the_window_top_with_the_title_on_the_left() {
-        let menu = menu();
-        assert_eq!(
-            menu.bar,
-            Rect::new(0.0, 0.0, beginner_window().x, theme::MENU_BAR_HEIGHT)
-        );
-        assert_eq!(menu.title.point(), Vec2::ZERO);
-        assert_eq!(menu.title.h, menu.bar.h);
+    fn commands(menu: &MenuColumn) -> Vec<Command> {
+        menu.items.iter().map(|item| item.command).collect()
     }
 
     #[test]
-    fn items_are_stacked_directly_below_the_bar_in_order() {
-        let menu = menu();
-        let commands: Vec<Command> = menu.items.iter().map(|item| item.command).collect();
+    fn bar_spans_the_window_top() {
         assert_eq!(
-            commands,
+            layout().bar,
+            Rect::new(0.0, 0.0, beginner_window().x, theme::MENU_BAR_HEIGHT)
+        );
+    }
+
+    #[test]
+    fn titles_sit_side_by_side_in_the_bar_game_first() {
+        let layout = layout();
+        let titles: Vec<&str> = layout.menus.iter().map(|menu| menu.title).collect();
+        assert_eq!(titles, ["Game", "Help"]);
+        assert_eq!(layout.menus[0].title_rect.left(), 0.0);
+        assert_eq!(layout.menus[1].title_rect.left(), layout.menus[0].title_rect.right());
+        for menu in &layout.menus {
+            assert_eq!(menu.title_rect.h, layout.bar.h, "{}", menu.title);
+        }
+    }
+
+    #[test]
+    fn each_menu_has_its_commands_in_order() {
+        let layout = layout();
+        assert_eq!(
+            commands(&layout.menus[0]),
             [
                 Command::NewGame,
                 Command::Start(Difficulty::Beginner),
@@ -96,34 +115,61 @@ mod tests {
                 Command::Start(Difficulty::Expert),
             ]
         );
-        let mut expected_top = menu.bar.bottom();
-        for item in &menu.items {
-            assert_eq!(item.rect.top(), expected_top, "{} leaves a gap or overlaps", item.label);
-            expected_top = item.rect.bottom();
-        }
-        assert_eq!(
-            menu.dropdown.bottom(),
-            expected_top,
-            "the dropdown wraps exactly its items"
-        );
+        assert_eq!(commands(&layout.menus[1]), [Command::About]);
     }
 
     #[test]
-    fn item_at_finds_the_item_under_the_point() {
-        let menu = menu();
-        for item in &menu.items {
-            assert_eq!(menu.item_at(item.rect.center()), Some(item), "{}", item.label);
+    fn items_are_stacked_directly_below_the_bar() {
+        for menu in &layout().menus {
+            let mut expected_top = theme::MENU_BAR_HEIGHT;
+            for item in &menu.items {
+                assert_eq!(item.rect.top(), expected_top, "{} leaves a gap or overlaps", item.label);
+                assert_eq!(
+                    item.rect.x, menu.dropdown.x,
+                    "{} sticks out of its dropdown",
+                    item.label
+                );
+                expected_top = item.rect.bottom();
+            }
+            assert_eq!(
+                menu.dropdown.bottom(),
+                expected_top,
+                "{}: the dropdown wraps its items",
+                menu.title
+            );
         }
-        assert_eq!(menu.item_at(menu.title.center()), None, "the title isn't an item");
-        let below = Vec2::new(10.0, menu.dropdown.bottom() + 5.0);
-        assert_eq!(menu.item_at(below), None, "below the dropdown");
     }
 
     #[test]
-    fn the_dropdown_fits_even_in_the_smallest_window() {
-        let menu = menu();
+    fn title_at_and_item_at_find_what_is_under_the_point() {
+        let layout = layout();
+        for (index, menu) in layout.menus.iter().enumerate() {
+            assert_eq!(layout.title_at(menu.title_rect.center()), Some(index), "{}", menu.title);
+            for item in &menu.items {
+                assert_eq!(menu.item_at(item.rect.center()), Some(item), "{}", item.label);
+            }
+        }
+        let empty_bar = Vec2::new(layout.bar.right() - 2.0, layout.bar.center().y);
+        assert_eq!(layout.title_at(empty_bar), None);
+    }
+
+    /// The Help menu's title is not at the left edge, so its dropdown could stick out
+    /// of the narrow Beginner window; it must be pushed back inside.
+    #[test]
+    fn every_dropdown_fits_even_in_the_smallest_window() {
         let window = beginner_window();
-        assert!(menu.dropdown.right() <= window.x, "too wide for Beginner");
-        assert!(menu.dropdown.bottom() <= window.y, "too tall for Beginner");
+        for menu in &layout().menus {
+            assert!(menu.dropdown.left() >= 0.0, "{} starts left of the window", menu.title);
+            assert!(
+                menu.dropdown.right() <= window.x,
+                "{} is too wide for Beginner",
+                menu.title
+            );
+            assert!(
+                menu.dropdown.bottom() <= window.y,
+                "{} is too tall for Beginner",
+                menu.title
+            );
+        }
     }
 }

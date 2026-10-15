@@ -3,14 +3,14 @@ use std::time::Instant;
 
 use macroquad::input::{KeyCode, is_key_pressed};
 use macroquad::math::Vec2;
-use macroquad::prelude::clear_background;
+use macroquad::prelude::{clear_background, get_time};
 
 use crate::logic::{Difficulty, Game, GameStatus};
 use crate::scores::{self, BestTimes};
 use crate::ui::{
-    BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick, MenuLayout, Press, any_button_down,
-    draw_board, draw_header, draw_menu, face_clicked, handle_mouse, keyboard_command, left_pressed, mouse,
-    pressed_cells, theme, window_size,
+    AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick,
+    MenuLayout, Press, any_button_down, draw_about, draw_board, draw_header, draw_menu, face_clicked, handle_mouse,
+    keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme, window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -23,9 +23,10 @@ pub struct App {
     tracker: ClickTracker,
     menu: Menu,
     menu_layout: MenuLayout,
-    /// The current mouse gesture started on the menu (or closed it), so until every button
-    /// is up again, nothing may happen on the board or the face.
-    menu_owns_mouse: bool,
+    about: AboutDialog,
+    /// The current mouse gesture started on the menu or a dialog (or closed one), so until
+    /// every button is up again, nothing may happen on the board or the face.
+    mouse_captured: bool,
     best_times: BestTimes,
     /// Where to save new records; `None` in tests (and on a system without a home folder).
     best_times_path: Option<PathBuf>,
@@ -44,7 +45,8 @@ impl App {
             tracker: ClickTracker::default(),
             menu: Menu::default(),
             menu_layout: MenuLayout::new(window_size(layout.rect()).x),
-            menu_owns_mouse: false,
+            about: AboutDialog::default(),
+            mouse_captured: false,
             best_times,
             best_times_path,
             win_recorded: false,
@@ -58,15 +60,20 @@ impl App {
     /// Reads this frame's mouse and keyboard input and updates the game.
     /// Returns the new window size when the window has to change.
     pub fn update(&mut self) -> Option<Vec2> {
+        if self.about.is_open() {
+            self.update_about();
+            return None;
+        }
+
         let mut command = None;
 
         // 1. The menu gets the first look at a click.
         if left_pressed() {
             match self.menu.click(mouse(), &self.menu_layout) {
                 MenuClick::NotMine => {}
-                MenuClick::Consumed => self.menu_owns_mouse = true,
+                MenuClick::Consumed => self.mouse_captured = true,
                 MenuClick::Chose(chosen) => {
-                    self.menu_owns_mouse = true;
+                    self.mouse_captured = true;
                     command = Some(chosen);
                 }
             }
@@ -86,16 +93,44 @@ impl App {
         // 3. Keyboard shortcuts work whether the menu is open or not.
         command = command.or_else(keyboard_command);
 
-        // The gesture is over once every button is up.
-        if !any_button_down() {
-            self.menu_owns_mouse = false;
-        }
-
+        self.release_mouse_when_buttons_are_up();
         command.and_then(|command| self.apply(command))
     }
 
+    /// While the About dialog is open it is modal: every click and key belongs to it.
+    fn update_about(&mut self) {
+        let layout = self.about_layout();
+        if left_pressed() {
+            self.mouse_captured = true;
+            self.about.press(mouse(), &layout);
+        }
+        if left_released() {
+            self.about.release(mouse(), &layout);
+        }
+        if [KeyCode::Escape, KeyCode::Enter, KeyCode::KpEnter]
+            .into_iter()
+            .any(is_key_pressed)
+        {
+            self.about.close();
+        }
+        // The tracker must still see every button event, but nothing reaches the board.
+        handle_mouse(&mut self.game, &self.layout, &mut self.tracker, false);
+        self.release_mouse_when_buttons_are_up();
+    }
+
+    /// The gesture is over once every button is up.
+    fn release_mouse_when_buttons_are_up(&mut self) {
+        if !any_button_down() {
+            self.mouse_captured = false;
+        }
+    }
+
     fn board_enabled(&self) -> bool {
-        !self.menu_owns_mouse && !self.menu.is_open()
+        !self.mouse_captured && !self.menu.is_open() && !self.about.is_open()
+    }
+
+    fn about_layout(&self) -> AboutLayout {
+        AboutLayout::centered_in(self.window_size())
     }
 
     /// On the first frame after a win: remember the time if it's a record, and save it.
@@ -126,7 +161,7 @@ impl App {
             Command::Start(difficulty) => {
                 let resized = difficulty != self.difficulty;
                 // Replace only what depends on the difficulty. Everything else must survive,
-                // above all `menu_owns_mouse`: the click that chose this difficulty is still
+                // above all `mouse_captured`: the click that chose this difficulty is still
                 // held down, and its release must not reach the new board.
                 self.difficulty = difficulty;
                 self.layout = BoardLayout::for_difficulty(difficulty);
@@ -134,6 +169,11 @@ impl App {
                 self.menu_layout = MenuLayout::new(self.window_size().x);
                 self.start_new_game();
                 resized.then(|| self.window_size())
+            }
+            Command::About => {
+                self.menu.close();
+                self.about.show();
+                None
             }
         }
     }
@@ -159,11 +199,14 @@ impl App {
         // Last, so the open dropdown is drawn on top of the board.
         draw_menu(
             &self.menu_layout,
-            self.menu.is_open(),
+            self.menu.open_menu(),
             self.difficulty,
             &self.best_times,
             &fonts.cell,
         );
+        if self.about.is_open() {
+            draw_about(&self.about_layout(), self.about.ok_pressed(), &fonts.cell, get_time());
+        }
     }
 }
 
@@ -233,8 +276,43 @@ mod tests {
     #[test]
     fn a_menu_click_keeps_owning_the_mouse_across_a_change_of_difficulty() {
         let mut app = app(Difficulty::Beginner);
-        app.menu_owns_mouse = true; // the press landed on "Expert" in the menu
+        app.mouse_captured = true; // the press landed on "Expert" in the menu
         app.apply(Command::Start(Difficulty::Expert));
         assert!(!app.board_enabled(), "the release of that click would open a cell");
+    }
+
+    #[test]
+    fn about_opens_a_modal_dialog_and_closes_the_menu() {
+        let mut app = app(Difficulty::Beginner);
+        app.menu
+            .click(app.menu_layout.menus[1].title_rect.center(), &app.menu_layout); // open Help
+        assert!(app.menu.is_open());
+
+        assert_eq!(app.apply(Command::About), None, "no resize");
+        assert!(app.about.is_open());
+        assert!(!app.menu.is_open(), "the menu closes when the dialog opens");
+        assert!(
+            !app.board_enabled(),
+            "while the dialog is open, the board ignores the mouse"
+        );
+    }
+
+    /// Clicking OK closes the dialog on the *release*, but the press set `mouse_captured`,
+    /// so the board stays disabled for the rest of that click.
+    #[test]
+    fn the_click_that_closes_the_dialog_does_not_reach_the_board() {
+        let mut app = app(Difficulty::Beginner);
+        app.apply(Command::About);
+        let ok = app.about_layout().ok_button.center();
+
+        app.mouse_captured = true; // what `update_about` does on the press
+        app.about.press(ok, &app.about_layout());
+        app.about.release(ok, &app.about_layout());
+
+        assert!(!app.about.is_open());
+        assert!(
+            !app.board_enabled(),
+            "until every button is up, the board must not react"
+        );
     }
 }

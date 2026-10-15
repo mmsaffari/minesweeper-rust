@@ -8,4 +8,6 @@ pub enum Command {
     NewGame,
     /// Start over with this difficulty (the window resizes to fit).
     Start(Difficulty),
+    /// Show the About dialog.
+    About,
 }

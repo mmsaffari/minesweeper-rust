@@ -4,7 +4,8 @@ use super::Command;
 use crate::logic::Difficulty;
 
 /// Every key that does something. `keyboard_command` only asks macroquad about these.
-const SHORTCUT_KEYS: [KeyCode; 7] = [
+const SHORTCUT_KEYS: [KeyCode; 8] = [
+    KeyCode::F1,
     KeyCode::F2,
     KeyCode::Key1,
     KeyCode::Key2,
@@ -22,10 +23,11 @@ pub fn keyboard_command() -> Option<Command> {
         .find_map(command_for_key)
 }
 
-/// F2 = new game (as in the original), 1/2/3 = Beginner/Intermediate/Expert.
+/// F1 = About, F2 = new game (both as in the original), 1/2/3 = Beginner/Intermediate/Expert.
 /// The number pad works too.
 pub fn command_for_key(key: KeyCode) -> Option<Command> {
     match key {
+        KeyCode::F1 => Some(Command::About),
         KeyCode::F2 => Some(Command::NewGame),
         KeyCode::Key1 | KeyCode::Kp1 => Some(Command::Start(Difficulty::Beginner)),
         KeyCode::Key2 | KeyCode::Kp2 => Some(Command::Start(Difficulty::Intermediate)),
@@ -41,6 +43,7 @@ mod tests {
     #[test]
     fn shortcuts_map_to_their_commands() {
         let cases = [
+            (KeyCode::F1, Some(Command::About)),
             (KeyCode::F2, Some(Command::NewGame)),
             (KeyCode::Key1, Some(Command::Start(Difficulty::Beginner))),
             (KeyCode::Kp1, Some(Command::Start(Difficulty::Beginner))),

@@ -2,6 +2,7 @@ use macroquad::prelude::*;
 
 use super::BoardLayout;
 use super::bevel;
+use super::mine_icon;
 use super::theme;
 use crate::logic::{Cell, CellContent, CellState, Game, GameStatus, Position};
 
@@ -89,15 +90,9 @@ fn draw_flat(rect: Rect, fill: Color) {
     draw_rectangle(x, y, theme::GRID_LINE, h, theme::GRID); // left
 }
 
-/// A round black mine with four spikes and a small shine.
+/// A mine filling the cell.
 fn draw_mine(rect: Rect) {
-    let c = rect.center();
-    let r = rect.w * 0.25;
-    let spike = r * 1.5;
-    draw_line(c.x - spike, c.y, c.x + spike, c.y, 2.0, theme::MINE);
-    draw_line(c.x, c.y - spike, c.x, c.y + spike, 2.0, theme::MINE);
-    draw_circle(c.x, c.y, r, theme::MINE);
-    draw_circle(c.x - r * 0.35, c.y - r * 0.35, r * 0.25, theme::MINE_SHINE);
+    mine_icon::draw_mine(rect.center(), rect.w * 0.25, 1.0);
 }
 
 /// The red X over a wrong flag after losing.

@@ -4,38 +4,34 @@ use super::{Command, MenuLayout, bevel, theme};
 use crate::logic::Difficulty;
 use crate::scores::BestTimes;
 
-/// Draws the menu bar and, if `open`, the dropdown on top of everything else.
-/// `current` gets the check mark; each difficulty shows its best time.
-pub fn draw_menu(layout: &MenuLayout, open: bool, current: Difficulty, best: &BestTimes, font: &Font) {
+/// Draws the menu bar and, if a menu is `open` (index into `layout.menus`), its dropdown on
+/// top of everything else. `current` gets the check mark; each difficulty shows its best time.
+pub fn draw_menu(layout: &MenuLayout, open: Option<usize>, current: Difficulty, best: &BestTimes, font: &Font) {
     // The bar, with a thin line separating it from the window below.
     let bar = layout.bar;
     draw_rectangle(bar.x, bar.y, bar.w, bar.h, theme::BACKGROUND);
     draw_rectangle(bar.x, bar.bottom() - 1.0, bar.w, 1.0, theme::BEVEL_DARK);
 
-    // The title: highlighted while its menu is open, like in Windows.
-    let title_color = if open {
-        let t = layout.title;
-        draw_rectangle(t.x, t.y, t.w, t.h, theme::MENU_HIGHLIGHT);
-        theme::MENU_HIGHLIGHT_TEXT
-    } else {
-        theme::MENU_TEXT
-    };
-    draw_label(
-        "Game",
-        layout.title.x + theme::MENU_PADDING,
-        layout.title,
-        title_color,
-        font,
-    );
-
-    if !open {
-        return;
+    // The titles: the open one highlighted, like in Windows.
+    for (index, menu) in layout.menus.iter().enumerate() {
+        let t = menu.title_rect;
+        let color = if open == Some(index) {
+            draw_rectangle(t.x, t.y, t.w, t.h, theme::MENU_HIGHLIGHT);
+            theme::MENU_HIGHLIGHT_TEXT
+        } else {
+            theme::MENU_TEXT
+        };
+        draw_label(menu.title, t.x + theme::MENU_PADDING, t, color, font);
     }
 
-    bevel::draw_raised(layout.dropdown, theme::BUTTON_BEVEL, theme::BACKGROUND);
+    let Some(menu) = open.map(|index| &layout.menus[index]) else {
+        return;
+    };
+
+    bevel::draw_raised(menu.dropdown, theme::BUTTON_BEVEL, theme::BACKGROUND);
     let mouse = Vec2::from(mouse_position());
 
-    for item in &layout.items {
+    for item in &menu.items {
         let rect = item.rect;
         let hovered = rect.contains(mouse);
         let (color, dim_color) = if hovered {

@@ -6,17 +6,41 @@ use macroquad::math::Vec2;
 use super::{BoardLayout, ClickTracker, HeaderLayout, MouseAction};
 use crate::logic::Game;
 
-/// Reads this frame's mouse button events and applies them to the game.
+const BUTTONS: [MouseButton; 3] = [MouseButton::Left, MouseButton::Right, MouseButton::Middle];
+
+/// Reads this frame's mouse button events and, if `board_enabled`, applies them to the game.
+/// The tracker always sees every event, even while the board is disabled (menu open);
+/// otherwise it would think a button is still held down.
 /// Call it once per frame, before drawing, so the frame already shows the result.
-pub fn handle_mouse(game: &mut Game, layout: &BoardLayout, tracker: &mut ClickTracker) {
-    for button in [MouseButton::Left, MouseButton::Right, MouseButton::Middle] {
+pub fn handle_mouse(game: &mut Game, layout: &BoardLayout, tracker: &mut ClickTracker, board_enabled: bool) {
+    for button in BUTTONS {
         if is_mouse_button_pressed(button) {
-            apply(tracker.press(button), game, layout);
+            let action = tracker.press(button);
+            if board_enabled {
+                apply(action, game, layout);
+            }
         }
         if is_mouse_button_released(button) {
-            apply(tracker.release(button), game, layout);
+            let action = tracker.release(button);
+            if board_enabled {
+                apply(action, game, layout);
+            }
         }
     }
+}
+
+/// Any mouse button is held down right now.
+pub fn any_button_down() -> bool {
+    BUTTONS.into_iter().any(is_mouse_button_down)
+}
+
+/// The left button was pressed this frame (where the menu looks for clicks).
+pub fn left_pressed() -> bool {
+    is_mouse_button_pressed(MouseButton::Left)
+}
+
+pub fn mouse() -> Vec2 {
+    Vec2::from(mouse_position())
 }
 
 /// The face button was clicked (released over it) this frame: time for a new game.

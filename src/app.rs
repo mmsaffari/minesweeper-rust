@@ -1,10 +1,12 @@
+use macroquad::input::{KeyCode, is_key_pressed};
 use macroquad::math::Vec2;
 use macroquad::prelude::clear_background;
 
 use crate::logic::{Difficulty, Game};
 use crate::ui::{
-    BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, draw_board, draw_header, face_clicked, handle_mouse,
-    keyboard_command, pressing_board, theme, window_size,
+    BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick, MenuLayout, any_button_down,
+    draw_board, draw_header, draw_menu, face_clicked, handle_mouse, keyboard_command, left_pressed, mouse,
+    pressing_board, theme, window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -15,6 +17,11 @@ pub struct App {
     layout: BoardLayout,
     header: HeaderLayout,
     tracker: ClickTracker,
+    menu: Menu,
+    menu_layout: MenuLayout,
+    /// The current mouse gesture started on the menu (or closed it), so until every button
+    /// is up again, nothing may happen on the board or the face.
+    menu_owns_mouse: bool,
 }
 
 impl App {
@@ -26,6 +33,9 @@ impl App {
             layout,
             header: HeaderLayout::above(layout.rect()),
             tracker: ClickTracker::default(),
+            menu: Menu::default(),
+            menu_layout: MenuLayout::new(window_size(layout.rect()).x),
+            menu_owns_mouse: false,
         }
     }
 
@@ -36,12 +46,43 @@ impl App {
     /// Reads this frame's mouse and keyboard input and updates the game.
     /// Returns the new window size when the window has to change.
     pub fn update(&mut self) -> Option<Vec2> {
-        // The tracker must see every button event, including clicks on the face,
-        // or it would think a button is still held down.
-        handle_mouse(&mut self.game, &self.layout, &mut self.tracker);
+        let mut command = None;
 
-        let command = keyboard_command().or_else(|| face_clicked(&self.header).then_some(Command::NewGame));
+        // 1. The menu gets the first look at a click.
+        if left_pressed() {
+            match self.menu.click(mouse(), &self.menu_layout) {
+                MenuClick::NotMine => {}
+                MenuClick::Consumed => self.menu_owns_mouse = true,
+                MenuClick::Chose(chosen) => {
+                    self.menu_owns_mouse = true;
+                    command = Some(chosen);
+                }
+            }
+        }
+        if is_key_pressed(KeyCode::Escape) {
+            self.menu.close();
+        }
+
+        // 2. The board and the face, unless the menu has the mouse.
+        let board_enabled = self.board_enabled();
+        handle_mouse(&mut self.game, &self.layout, &mut self.tracker, board_enabled);
+        if board_enabled && face_clicked(&self.header) {
+            command = command.or(Some(Command::NewGame));
+        }
+
+        // 3. Keyboard shortcuts work whether the menu is open or not.
+        command = command.or_else(keyboard_command);
+
+        // The gesture is over once every button is up.
+        if !any_button_down() {
+            self.menu_owns_mouse = false;
+        }
+
         command.and_then(|command| self.apply(command))
+    }
+
+    fn board_enabled(&self) -> bool {
+        !self.menu_owns_mouse && !self.menu.is_open()
     }
 
     /// Carries out a command. Returns the new window size if the board size changed.
@@ -61,10 +102,13 @@ impl App {
     }
 
     pub fn draw(&self, fonts: &Fonts) {
-        let face = Face::for_game(self.game.status(), pressing_board(&self.layout));
+        let pressing = self.board_enabled() && pressing_board(&self.layout);
+        let face = Face::for_game(self.game.status(), pressing);
         clear_background(theme::BACKGROUND);
         draw_header(&self.game, &self.header, face, &fonts.counter);
         draw_board(&self.game, &self.layout, &fonts.cell);
+        // Last, so the open dropdown is drawn on top of the board.
+        draw_menu(&self.menu_layout, self.menu.is_open(), self.difficulty, &fonts.cell);
     }
 }
 

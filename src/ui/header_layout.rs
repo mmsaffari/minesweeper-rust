@@ -15,8 +15,10 @@ impl HeaderLayout {
     /// `board` is the area of all cells, i.e. `BoardLayout::rect()`.
     pub fn above(board: Rect) -> Self {
         let h = theme::HEADER_HEIGHT;
-        // Vertically centred in the margin between the window's top and the board's frame.
-        let y = (board.y - theme::BEVEL - h) / 2.0;
+        // Vertically centred in the space between the menu bar and the board's frame.
+        let space_top = theme::MENU_BAR_HEIGHT;
+        let space_bottom = board.y - theme::BEVEL;
+        let y = space_top + (space_bottom - space_top - h) / 2.0;
         let led_w = theme::LED_WIDTH;
 
         Self {
@@ -33,7 +35,7 @@ mod tests {
 
     /// A Beginner board: 9 x 24 px, starting at the usual margins.
     fn board() -> Rect {
-        Rect::new(12.0, 60.0, 216.0, 216.0)
+        Rect::new(theme::SIDE_MARGIN, theme::TOP_MARGIN, 216.0, 216.0)
     }
 
     #[test]
@@ -56,7 +58,7 @@ mod tests {
         let parts = [header.counter, header.face, header.timer];
         for part in parts {
             assert_eq!(part.y, header.face.y, "one row: {part:?}");
-            assert!(part.top() >= 0.0, "inside the window: {part:?}");
+            assert!(part.top() >= theme::MENU_BAR_HEIGHT, "below the menu bar: {part:?}");
             assert!(
                 part.bottom() <= board().top() - theme::BEVEL,
                 "above the board's frame: {part:?}"

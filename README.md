@@ -28,7 +28,10 @@ The first click is never a mine.
 | Both buttons, or middle click, on a number | **Chord**: if that number's mines are all flagged, open its other neighbours |
 | Click the smiley, or `F2` | New game |
 | `1` / `2` / `3` | Beginner (9×9, 10 mines) / Intermediate (16×16, 40) / Expert (30×16, 99) |
-| **Game** menu | The same, plus your best time for each difficulty |
+| `H` | **Hint**: outlines a cell that is certainly safe (green) or certainly a mine (red), worked out only from what you can see |
+| `Ctrl+C` | Copy the board as text (`#` hidden, `F` flag, `?` mark, `.` empty, numbers), e.g. to ask someone for help |
+| `F1` | About |
+| **Game** / **Help** menus | All of the above, plus your best time for each difficulty |
 
 The counter on the left shows mines minus flags; the timer on the right stops at 999.
 When you win, every mine is flagged and the time is saved if it's a new record.
@@ -69,7 +72,8 @@ src/
 ├── app.rs       the running program: game, layout, menu, input routing
 ├── logic/       the game rules, with no graphics at all: board, cells, mines, winning/losing
 ├── ui/          everything on screen: layout, drawing, mouse/keyboard, header, menu
-└── scores/      best times, saved as JSON in the user's data folder
+├── scores/      best times, saved as JSON in the user's data folder
+└── solver/      the board as the player sees it: the text export and the hint
 ```
 
 One type (or one function) per file. Logic and layout code is unit-tested; only the

@@ -356,6 +356,7 @@ name = "minesweeper"
 version = "1.4.0"
 dependencies = [
  "directories",
+ "fontdue",
  "macroquad",
  "open",
  "png",

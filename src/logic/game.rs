@@ -7,12 +7,15 @@ use super::Position;
 use super::generate_mines;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::time::Instant;
 
 pub struct Game {
     board: Board,
     status: GameStatus,
     rng: StdRng,
     properties: BoardProperties,
+    started_at: Option<Instant>,
+    ended_at: Option<Instant>,
 }
 
 impl Game {
@@ -33,6 +36,8 @@ impl Game {
             status: GameStatus::default(),
             rng,
             properties,
+            started_at: None,
+            ended_at: None,
         }
     }
 
@@ -58,6 +63,7 @@ impl Game {
                 let mines = generate_mines(self.properties, pos, &mut self.rng);
                 self.board.place_mines(&mines);
                 self.status = GameStatus::Playing;
+                self.started_at = Some(Instant::now());
             }
             (GameStatus::Playing, CellState::Hidden | CellState::Questioned) => {}
         }
@@ -70,6 +76,7 @@ impl Game {
 
         if cell.is_mine {
             self.status = GameStatus::Lost;
+            self.ended_at = Some(Instant::now());
             return;
         }
 
@@ -79,6 +86,7 @@ impl Game {
 
         if self.all_safe_cells_revealed() {
             self.status = GameStatus::Won;
+            self.ended_at = Some(Instant::now());
         }
     }
 
@@ -93,6 +101,55 @@ impl Game {
             }
             GameStatus::Won | GameStatus::Lost => {}
         };
+    }
+
+    /// Middle click (or both buttons) on an opened number: if exactly that many neighbours
+    /// are flagged, open all its other neighbours. A wrong flag means you hit a mine.
+    pub fn chord(&mut self, pos: Position) {
+        if self.status != GameStatus::Playing {
+            return;
+        }
+        let Some(cell) = self.board.cell(pos) else { return };
+        if cell.state != CellState::Revealed {
+            return;
+        }
+        let wanted = usize::from(cell.adjacent_mines);
+        let neighbours = self.board.neighbours(pos);
+        let flagged_neighbor_count = neighbours
+            .iter()
+            .filter(|&&p| self.board.cell(p).is_some_and(|c| c.state == CellState::Flagged))
+            .count();
+        if wanted != flagged_neighbor_count {
+            return;
+        }
+        for n in neighbours {
+            self.reveal(n);
+        }
+    }
+
+    /// For the counter at the top left: total mines minus flags. Goes negative if the player
+    /// places too many flags. Question marks don't count.
+    pub fn mines_left(&self) -> isize {
+        let flagged: usize = self
+            .board
+            .cells
+            .iter()
+            .flatten()
+            .filter(|c| c.state == CellState::Flagged)
+            .count();
+
+        let mines = isize::try_from(self.properties.mines).expect("mine count fits in isize");
+        let flagged = isize::try_from(flagged).expect("flag count fits in isize");
+
+        mines - flagged
+    }
+
+    /// For the timer at the top right: whole seconds since the first opening click,
+    /// frozen once the game is won or lost, never more than 999. 0 before the first click.
+    pub fn elapsed_seconds(&self, now: Instant) -> u64 {
+        let Some(start) = self.started_at else { return 0 };
+        let end = self.ended_at.unwrap_or(now);
+        end.saturating_duration_since(start).as_secs().min(999)
     }
 
     /// Opens everything reachable from `start` (an already revealed 0) through other 0s,
@@ -127,6 +184,7 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     // --- helpers ---
 
@@ -190,13 +248,16 @@ mod tests {
 
     /// Mines already placed and status Playing, as if the first click already happened.
     fn with_mines(properties: BoardProperties, mines: &[Position]) -> Game {
-        let mut arbitary_board = Board::new(properties);
-        arbitary_board.place_mines(mines);
+        let mut board = Board::new(properties);
+        board.place_mines(mines);
         Game {
-            board: arbitary_board,
+            board,
             status: GameStatus::Playing,
             rng: StdRng::seed_from_u64(0),
             properties,
+            // As if the first click just happened, so the timer is running.
+            started_at: Some(Instant::now()),
+            ended_at: None,
         }
     }
 
@@ -420,6 +481,172 @@ mod tests {
             game.toggle_mark(p(0, 0));
             assert_eq!(game.status(), GameStatus::Ready);
             assert_eq!(mine_count(&game), 0);
+        }
+    }
+
+    mod chording {
+        use super::*;
+
+        #[test]
+        fn opens_the_other_neighbours_when_flags_match_the_number() {
+            let mut game = walled_game();
+            game.reveal(p(1, 0)); // a "2"
+            game.toggle_mark(p(2, 0));
+            game.toggle_mark(p(2, 1));
+            game.chord(p(1, 0)); // opens (0,0), a 0, which floods the top
+            assert_eq!(picture(&game), [".....", "23332", "FF###", "#####", "#####"]);
+        }
+
+        #[test]
+        fn does_nothing_with_too_few_flags() {
+            let mut game = walled_game();
+            game.reveal(p(1, 0));
+            game.toggle_mark(p(2, 0)); // only 1 flag around a "2"
+            game.chord(p(1, 0));
+            assert_eq!(picture(&game), ["#####", "2####", "F####", "#####", "#####"]);
+        }
+
+        #[test]
+        fn a_wrong_flag_makes_you_lose() {
+            let mut game = walled_game();
+            game.reveal(p(1, 0));
+            game.toggle_mark(p(2, 0));
+            game.toggle_mark(p(0, 0)); // wrong: (0,0) is safe, so (2,1) is the unflagged mine
+            game.chord(p(1, 0));
+            assert_eq!(game.status(), GameStatus::Lost);
+        }
+
+        #[test]
+        fn does_nothing_on_a_hidden_cell() {
+            let mut game = walled_game();
+            game.toggle_mark(p(2, 0));
+            game.toggle_mark(p(2, 1));
+            game.chord(p(1, 0)); // not opened yet
+            assert_eq!(picture(&game), ["#####", "#####", "FF###", "#####", "#####"]);
+        }
+
+        #[test]
+        fn can_win_the_game() {
+            // 2x2, mine top-left: every other cell is a "1".
+            let mut game = game(2, 2, &[p(0, 0)]);
+            game.reveal(p(1, 1));
+            game.toggle_mark(p(0, 0));
+            game.chord(p(1, 1));
+            assert_eq!(game.status(), GameStatus::Won);
+        }
+
+        #[test]
+        fn does_nothing_before_the_first_click() {
+            let mut game = Game::new(Difficulty::Beginner);
+            game.chord(p(4, 4));
+            assert_eq!(game.status(), GameStatus::Ready);
+            assert_eq!(mine_count(&game), 0);
+        }
+    }
+
+    mod mine_counter {
+        use super::*;
+
+        #[test]
+        fn starts_at_the_total_before_mines_are_placed() {
+            assert_eq!(Game::new(Difficulty::Beginner).mines_left(), 10);
+            assert_eq!(Game::new(Difficulty::Expert).mines_left(), 99);
+        }
+
+        #[test]
+        fn counts_flags_but_not_question_marks() {
+            let mut game = walled_game(); // 5 mines
+            game.toggle_mark(p(0, 0));
+            game.toggle_mark(p(0, 1));
+            game.toggle_mark(p(0, 2));
+            game.toggle_mark(p(0, 2)); // flag -> question mark
+            assert_eq!(game.mines_left(), 3);
+        }
+
+        #[test]
+        fn goes_negative_with_too_many_flags() {
+            let mut game = walled_game(); // 5 mines
+            for col in 0..5 {
+                game.toggle_mark(p(0, col));
+            }
+            game.toggle_mark(p(1, 0));
+            assert_eq!(game.mines_left(), -1);
+        }
+    }
+
+    /// The tests set `started_at`/`ended_at` by hand, so they never have to wait for real seconds.
+    mod timer {
+        use super::*;
+
+        fn secs(s: f64) -> Duration {
+            Duration::from_secs_f64(s)
+        }
+
+        #[test]
+        fn is_zero_before_the_first_click() {
+            let mut game = Game::new(Difficulty::Beginner);
+            game.toggle_mark(p(0, 0)); // marking doesn't start it either
+            assert_eq!(game.elapsed_seconds(Instant::now() + secs(10.0)), 0);
+        }
+
+        #[test]
+        fn starts_on_the_first_reveal() {
+            let mut game = Game::with_seed(Difficulty::Beginner, 1);
+            assert!(game.started_at.is_none());
+            game.reveal(p(4, 4));
+            assert!(game.started_at.is_some(), "the first reveal must start the timer");
+        }
+
+        #[test]
+        fn counts_whole_seconds() {
+            let mut game = walled_game();
+            let t0 = Instant::now();
+            game.started_at = Some(t0);
+            assert_eq!(game.elapsed_seconds(t0), 0);
+            assert_eq!(game.elapsed_seconds(t0 + secs(5.9)), 5);
+        }
+
+        #[test]
+        fn never_shows_more_than_999() {
+            let mut game = walled_game();
+            let t0 = Instant::now();
+            game.started_at = Some(t0);
+            assert_eq!(game.elapsed_seconds(t0 + secs(5000.0)), 999);
+        }
+
+        #[test]
+        fn stops_when_the_game_is_lost() {
+            let mut game = walled_game();
+            game.reveal(p(2, 2)); // a mine
+            assert!(game.ended_at.is_some(), "losing must stop the timer");
+
+            let t0 = Instant::now();
+            game.started_at = Some(t0);
+            game.ended_at = Some(t0 + secs(7.0));
+            assert_eq!(
+                game.elapsed_seconds(t0 + secs(100.0)),
+                7,
+                "a stopped timer must not keep counting"
+            );
+        }
+
+        #[test]
+        fn a_finished_game_also_shows_at_most_999() {
+            let mut game = walled_game();
+            game.reveal(p(2, 2)); // lose
+            let t0 = Instant::now();
+            game.started_at = Some(t0);
+            game.ended_at = Some(t0 + secs(5000.0));
+            assert_eq!(game.elapsed_seconds(t0 + secs(6000.0)), 999);
+        }
+
+        #[test]
+        fn stops_when_the_game_is_won() {
+            let mut game = game(1, 3, &[p(0, 1)]);
+            game.reveal(p(0, 0));
+            assert!(game.ended_at.is_none(), "still playing");
+            game.reveal(p(0, 2));
+            assert!(game.ended_at.is_some(), "winning must stop the timer");
         }
     }
 }

@@ -1,4 +1,4 @@
-# Minesweeper
+# <img src="assets/icon.png" alt="" width="48" height="48" align="top"> Minesweeper
 
 [![CI](https://github.com/mmsaffari/minesweeper-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/mmsaffari/minesweeper-rust/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/mmsaffari/minesweeper-rust)](https://github.com/mmsaffari/minesweeper-rust/releases/latest)

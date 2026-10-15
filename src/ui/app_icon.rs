@@ -3,6 +3,9 @@
 //! Used twice: as the window icon (`main.rs`), and through `build.rs` as the `.exe` icon
 //! on Windows. `build.rs` includes this file directly (it can't use the crate), so this
 //! file may only use `std`, never `crate::` or `super::`.
+//!
+//! `assets/icon.png` (shown in the README) is a 128 px export of this drawing. It's the one
+//! copy that isn't generated automatically: if the drawing changes, export it again.
 
 const LIGHT: [u8; 4] = [0xFF, 0xFF, 0xFF, 0xFF];
 const DARK: [u8; 4] = [0x80, 0x80, 0x80, 0xFF];

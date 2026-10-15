@@ -81,6 +81,12 @@ pub const TITLE_BAR_END: Color = Color::from_rgba(0x10, 0x84, 0xD0, 0xFF);
 pub const TITLE_BAR_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 /// The little star that glints next to the mine in the About dialog.
 pub const SPARKLE: Color = Color::from_rgba(0xFF, 0xE0, 0x40, 0xFF);
+// --- Hint ---
+
+pub const HINT_SAFE: Color = Color::from_rgba(0x00, 0xB0, 0x00, 0xFF);
+pub const HINT_MINE: Color = Color::from_rgba(0xE0, 0x00, 0x00, 0xFF);
+pub const HINT_THICKNESS: f32 = 3.0;
+
 // --- Toasts (short messages over the board) ---
 
 pub const TOAST_FONT_SIZE: u16 = 14;

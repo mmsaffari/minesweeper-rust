@@ -29,6 +29,11 @@ pub fn handle_mouse(game: &mut Game, layout: &BoardLayout, tracker: &mut ClickTr
     }
 }
 
+/// Any mouse button went down this frame.
+pub fn any_button_pressed() -> bool {
+    BUTTONS.into_iter().any(is_mouse_button_pressed)
+}
+
 /// Any mouse button is held down right now.
 pub fn any_button_down() -> bool {
     BUTTONS.into_iter().any(is_mouse_button_down)

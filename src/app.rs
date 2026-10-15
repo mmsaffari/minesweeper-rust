@@ -8,12 +8,12 @@ use macroquad::prelude::{clear_background, get_time};
 
 use crate::logic::{Difficulty, Game, GameStatus};
 use crate::scores::{self, BestTimes};
-use crate::solver::View;
+use crate::solver::{Hint, View, find_hint};
 use crate::ui::{
     AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick,
-    MenuLayout, Press, Toast, any_button_down, draw_about, draw_board, draw_header, draw_menu, draw_toast,
-    face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme,
-    window_size,
+    MenuLayout, Press, Toast, any_button_down, any_button_pressed, draw_about, draw_board, draw_header, draw_hint,
+    draw_menu, draw_toast, face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse,
+    pressed_cells, theme, window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -37,6 +37,8 @@ pub struct App {
     win_recorded: bool,
     /// A short message over the board, if one is showing.
     toast: Option<Toast>,
+    /// The hint being shown (only `Safe` or `Mine`), until the next click on the board.
+    hint: Option<Hint>,
     /// Text waiting to be put on the clipboard. `apply` only asks for it; `update` does it,
     /// because the clipboard needs the real window (and `apply` must work in tests).
     clipboard_request: Option<String>,
@@ -59,6 +61,7 @@ impl App {
             best_times_path,
             win_recorded: false,
             toast: None,
+            hint: None,
             clipboard_request: None,
         }
     }
@@ -94,6 +97,9 @@ impl App {
 
         // 2. The board and the face, unless the menu has the mouse.
         let board_enabled = self.board_enabled();
+        if board_enabled && any_button_pressed() {
+            self.hint = None; // the player is acting on the board: the hint has done its job
+        }
         handle_mouse(&mut self.game, &self.layout, &mut self.tracker, board_enabled);
         self.record_win(Instant::now());
         if board_enabled && face_clicked(&self.header) {
@@ -196,7 +202,23 @@ impl App {
             }
             Command::CopyBoard => {
                 self.clipboard_request = Some(View::from_game(&self.game).to_string());
-                self.toast = Some(Toast::new("Board copied to the clipboard"));
+                self.toast = Some(Toast::new("Board copied"));
+                None
+            }
+            Command::Hint => {
+                self.hint = None;
+                let message = match self.game.status() {
+                    GameStatus::Ready => Some("First click is always safe"),
+                    GameStatus::Won | GameStatus::Lost => Some("Game over (F2: new game)"),
+                    GameStatus::Playing => match find_hint(&View::from_game(&self.game)) {
+                        Hint::NoSureMove => Some("No sure move: guess"),
+                        hint => {
+                            self.hint = Some(hint);
+                            None
+                        }
+                    },
+                };
+                self.toast = message.map(Toast::new);
                 None
             }
         }
@@ -205,6 +227,7 @@ impl App {
     fn start_new_game(&mut self) {
         self.game = Game::new(self.difficulty);
         self.win_recorded = false;
+        self.hint = None;
     }
 
     pub fn draw(&self, fonts: &Fonts) {
@@ -228,6 +251,11 @@ impl App {
             &self.best_times,
             &fonts.cell,
         );
+        match self.hint {
+            Some(Hint::Safe(pos)) => draw_hint(self.layout.cell_rect(pos), true, get_time()),
+            Some(Hint::Mine(pos)) => draw_hint(self.layout.cell_rect(pos), false, get_time()),
+            Some(Hint::NoSureMove) | None => {}
+        }
         if let Some(toast) = &self.toast
             && toast.is_visible(get_time())
         {
@@ -355,5 +383,39 @@ mod tests {
         assert_eq!(text, View::from_game(&app.game).to_string());
         assert!(text.starts_with('F'), "{text}");
         assert!(app.toast.is_some(), "the player is told it worked");
+    }
+
+    #[test]
+    fn a_hint_before_the_first_click_just_says_any_cell_is_safe() {
+        let mut app = app(Difficulty::Beginner);
+        app.apply(Command::Hint);
+        assert_eq!(app.hint, None);
+        assert!(app.toast.is_some());
+    }
+
+    #[test]
+    fn a_hint_while_playing_is_right_or_admits_there_is_none() {
+        for _ in 0..20 {
+            let mut app = app(Difficulty::Beginner);
+            app.game.reveal(Position::new(4, 4));
+            if app.game.status() != GameStatus::Playing {
+                continue; // the first click happened to win the whole board
+            }
+            app.apply(Command::Hint);
+            match app.hint {
+                Some(Hint::Safe(pos)) => assert!(!app.game.board().cell(pos).unwrap().is_mine()),
+                Some(Hint::Mine(pos)) => assert!(app.game.board().cell(pos).unwrap().is_mine()),
+                Some(Hint::NoSureMove) => panic!("NoSureMove is told as a toast, not shown as a hint"),
+                None => assert!(app.toast.is_some(), "no hint, so the player is told why"),
+            }
+        }
+    }
+
+    #[test]
+    fn a_new_game_clears_the_hint() {
+        let mut app = app(Difficulty::Beginner);
+        app.hint = Some(Hint::Safe(Position::new(0, 0)));
+        app.apply(Command::NewGame);
+        assert_eq!(app.hint, None);
     }
 }

@@ -12,11 +12,12 @@ pub struct MenuLayout {
 
 type Entry = (&'static str, &'static str, Command);
 
-const GAME: [Entry; 5] = [
+const GAME: [Entry; 6] = [
     ("New", "F2", Command::NewGame),
     ("Beginner", "1", Command::Start(Difficulty::Beginner)),
     ("Intermediate", "2", Command::Start(Difficulty::Intermediate)),
     ("Expert", "3", Command::Start(Difficulty::Expert)),
+    ("Hint", "H", Command::Hint),
     ("Copy board", "Ctrl+C", Command::CopyBoard),
 ];
 
@@ -114,6 +115,7 @@ mod tests {
                 Command::Start(Difficulty::Beginner),
                 Command::Start(Difficulty::Intermediate),
                 Command::Start(Difficulty::Expert),
+                Command::Hint,
                 Command::CopyBoard,
             ]
         );

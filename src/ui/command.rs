@@ -12,4 +12,6 @@ pub enum Command {
     About,
     /// Copy the board, as the player sees it, to the clipboard as text.
     CopyBoard,
+    /// Point out a cell that is certainly safe, or certainly a mine.
+    Hint,
 }

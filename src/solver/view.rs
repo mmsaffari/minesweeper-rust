@@ -42,6 +42,25 @@ impl View {
             .collect();
         Self { cells }
     }
+
+    pub fn get(&self, pos: Position) -> Option<Seen> {
+        self.cells.get(pos.row)?.get(pos.col).copied()
+    }
+
+    pub fn neighbours(&self, pos: Position) -> Vec<Position> {
+        let cols = self.cells.first().map_or(0, Vec::len);
+        pos.neighbours(self.cells.len(), cols)
+    }
+
+    /// Every position with what's seen there, row by row.
+    pub fn cells(&self) -> impl Iterator<Item = (Position, Seen)> + '_ {
+        self.cells.iter().enumerate().flat_map(|(row, cells)| {
+            cells
+                .iter()
+                .enumerate()
+                .map(move |(col, &seen)| (Position::new(row, col), seen))
+        })
+    }
 }
 
 /// The text form: one line per row, no trailing newline.

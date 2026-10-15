@@ -27,11 +27,18 @@ The first click is never a mine.
 | Right click | Cycle a mark: flag → question mark → none |
 | Both buttons, or middle click, on a number | **Chord**: if that number's mines are all flagged, open its other neighbours |
 | Click the smiley, or `F2` | New game |
+| `R` | **Replay** the same game (same game number, same mines) |
+| `G` | **Choose a game** by its number |
 | `1` / `2` / `3` | Beginner (9×9, 10 mines) / Intermediate (16×16, 40) / Expert (30×16, 99) |
 | `H` | **Hint**: outlines a cell that is certainly safe (green) or certainly a mine (red), worked out only from what you can see |
 | `Ctrl+C` | Copy the board as text (`#` hidden, `F` flag, `?` mark, `.` empty, numbers), e.g. to ask someone for help |
 | `F1` | About |
 | **Game** / **Help** menus | All of the above, plus your best time for each difficulty |
+
+Every game has a **number**, shown on the right of the menu bar (like `#482913`). The same
+number and difficulty always give the same mines, wherever you click first, so you can share
+a good game or replay a tricky one. Best times only count for games with a fresh random
+number, not for replayed or chosen ones.
 
 The counter on the left shows mines minus flags; the timer on the right stops at 999.
 When you win, every mine is flagged and the time is saved if it's a new record.

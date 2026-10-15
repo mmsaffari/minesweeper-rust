@@ -10,10 +10,10 @@ use crate::logic::{Difficulty, Game, GameStatus};
 use crate::scores::{self, BestTimes};
 use crate::solver::{Hint, View, find_hint};
 use crate::ui::{
-    AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, Face, Fonts, HeaderLayout, Menu, MenuClick,
-    MenuLayout, Press, Toast, any_button_down, any_button_pressed, draw_about, draw_board, draw_header, draw_hint,
-    draw_menu, draw_toast, face_clicked, handle_mouse, keyboard_command, left_pressed, left_released, mouse,
-    pressed_cells, theme, window_size,
+    AboutDialog, AboutLayout, BoardLayout, ClickTracker, Command, DialogButton, Face, Fonts, HeaderLayout, Menu,
+    MenuClick, MenuLayout, NumberDialog, NumberDialogLayout, Press, Toast, any_button_down, any_button_pressed,
+    draw_about, draw_board, draw_header, draw_hint, draw_menu, draw_number_dialog, draw_toast, face_clicked,
+    handle_mouse, keyboard_command, left_pressed, left_released, mouse, pressed_cells, theme, typed_chars, window_size,
 };
 
 /// Everything the running program keeps between frames: which difficulty is chosen,
@@ -27,6 +27,7 @@ pub struct App {
     menu: Menu,
     menu_layout: MenuLayout,
     about: AboutDialog,
+    number_dialog: NumberDialog,
     /// The current mouse gesture started on the menu or a dialog (or closed one), so until
     /// every button is up again, nothing may happen on the board or the face.
     mouse_captured: bool,
@@ -35,6 +36,9 @@ pub struct App {
     best_times_path: Option<PathBuf>,
     /// This game's win has already been checked for a record (it's won for many frames).
     win_recorded: bool,
+    /// Whether this game can set a best time: only games with a fresh random number can.
+    /// A replayed or chosen number may be a layout the player already knows.
+    ranked: bool,
     /// A short message over the board, if one is showing.
     toast: Option<Toast>,
     /// The hint being shown (only `Safe` or `Mine`), until the next click on the board.
@@ -56,10 +60,12 @@ impl App {
             menu: Menu::default(),
             menu_layout: MenuLayout::new(window_size(layout.rect()).x),
             about: AboutDialog::default(),
+            number_dialog: NumberDialog::default(),
             mouse_captured: false,
             best_times,
             best_times_path,
             win_recorded: false,
+            ranked: true,
             toast: None,
             hint: None,
             clipboard_request: None,
@@ -76,6 +82,9 @@ impl App {
         if self.about.is_open() {
             self.update_about();
             return None;
+        }
+        if self.number_dialog.is_open() {
+            return self.update_number_dialog();
         }
 
         let mut command = None;
@@ -111,6 +120,8 @@ impl App {
 
         self.release_mouse_when_buttons_are_up();
         let resize = command.and_then(|command| self.apply(command));
+        // Nothing reads typed characters here, but they must not pile up for the next dialog.
+        typed_chars();
 
         // The effects `apply` can only ask for: they need the real window and clock.
         if let Some(text) = self.clipboard_request.take() {
@@ -141,6 +152,48 @@ impl App {
         // The tracker must still see every button event, but nothing reaches the board.
         handle_mouse(&mut self.game, &self.layout, &mut self.tracker, false);
         self.release_mouse_when_buttons_are_up();
+        typed_chars();
+    }
+
+    /// While the "Choose game" dialog is open it is modal too: clicks, digits, Backspace,
+    /// Enter (OK) and Esc (Cancel) all belong to it.
+    fn update_number_dialog(&mut self) -> Option<Vec2> {
+        let layout = self.number_dialog_layout();
+        let mut clicked = None;
+        if left_pressed() {
+            self.mouse_captured = true;
+            self.number_dialog.press(mouse(), &layout);
+        }
+        if left_released() {
+            clicked = self.number_dialog.release(mouse(), &layout);
+        }
+        for c in typed_chars() {
+            self.number_dialog.type_char(c);
+        }
+        if is_key_pressed(KeyCode::Backspace) {
+            self.number_dialog.backspace();
+        }
+        if [KeyCode::Enter, KeyCode::KpEnter].into_iter().any(is_key_pressed) {
+            clicked = Some(DialogButton::Ok);
+        }
+        if is_key_pressed(KeyCode::Escape) {
+            clicked = Some(DialogButton::Cancel);
+        }
+        handle_mouse(&mut self.game, &self.layout, &mut self.tracker, false);
+        self.release_mouse_when_buttons_are_up();
+
+        match clicked {
+            // An invalid number keeps the dialog open; the field shows it in red.
+            Some(DialogButton::Ok) => self.number_dialog.number().and_then(|number| {
+                self.number_dialog.close();
+                self.apply(Command::StartNumbered(number))
+            }),
+            Some(DialogButton::Cancel) => {
+                self.number_dialog.close();
+                None
+            }
+            None => None,
+        }
     }
 
     /// The gesture is over once every button is up.
@@ -151,17 +204,21 @@ impl App {
     }
 
     fn board_enabled(&self) -> bool {
-        !self.mouse_captured && !self.menu.is_open() && !self.about.is_open()
+        !self.mouse_captured && !self.menu.is_open() && !self.about.is_open() && !self.number_dialog.is_open()
     }
 
     fn about_layout(&self) -> AboutLayout {
         AboutLayout::centered_in(self.window_size())
     }
 
+    fn number_dialog_layout(&self) -> NumberDialogLayout {
+        NumberDialogLayout::centered_in(self.window_size())
+    }
+
     /// On the first frame after a win: remember the time if it's a record, and save it.
     /// Saving can fail (no permission, disk full); that's reported, but the game goes on.
     fn record_win(&mut self, now: Instant) {
-        if self.game.status() != GameStatus::Won || self.win_recorded {
+        if self.game.status() != GameStatus::Won || self.win_recorded || !self.ranked {
             return;
         }
         self.win_recorded = true;
@@ -180,7 +237,23 @@ impl App {
     pub fn apply(&mut self, command: Command) -> Option<Vec2> {
         match command {
             Command::NewGame => {
-                self.start_new_game();
+                self.start_game(Game::new(self.difficulty), true);
+                None
+            }
+            Command::Replay => {
+                let number = self.game.number();
+                self.start_game(Game::numbered(self.difficulty, number), false);
+                self.toast = Some(Toast::new("Replay: best times off"));
+                None
+            }
+            Command::ChooseGame => {
+                self.menu.close();
+                self.number_dialog.show(self.game.number());
+                None
+            }
+            Command::StartNumbered(number) => {
+                self.start_game(Game::numbered(self.difficulty, number), false);
+                self.toast = Some(Toast::new(format!("Game #{number}: best times off")));
                 None
             }
             Command::Start(difficulty) => {
@@ -192,7 +265,7 @@ impl App {
                 self.layout = BoardLayout::for_difficulty(difficulty);
                 self.header = HeaderLayout::above(self.layout.rect());
                 self.menu_layout = MenuLayout::new(self.window_size().x);
-                self.start_new_game();
+                self.start_game(Game::new(difficulty), true);
                 resized.then(|| self.window_size())
             }
             Command::About => {
@@ -224,8 +297,10 @@ impl App {
         }
     }
 
-    fn start_new_game(&mut self) {
-        self.game = Game::new(self.difficulty);
+    /// `ranked`: whether a win can set a best time (see the `ranked` field).
+    fn start_game(&mut self, game: Game, ranked: bool) {
+        self.game = game;
+        self.ranked = ranked;
         self.win_recorded = false;
         self.hint = None;
     }
@@ -243,19 +318,20 @@ impl App {
         clear_background(theme::BACKGROUND);
         draw_header(&self.game, &self.header, face, &fonts.counter);
         draw_board(&self.game, &self.layout, &pressed, &fonts.cell);
-        // Last, so the open dropdown is drawn on top of the board.
-        draw_menu(
-            &self.menu_layout,
-            self.menu.open_menu(),
-            self.difficulty,
-            &self.best_times,
-            &fonts.cell,
-        );
         match self.hint {
             Some(Hint::Safe(pos)) => draw_hint(self.layout.cell_rect(pos), true, get_time()),
             Some(Hint::Mine(pos)) => draw_hint(self.layout.cell_rect(pos), false, get_time()),
             Some(Hint::NoSureMove) | None => {}
         }
+        // After the board and the hint, so an open dropdown is drawn on top of them.
+        draw_menu(
+            &self.menu_layout,
+            self.menu.open_menu(),
+            self.difficulty,
+            self.game.number(),
+            &self.best_times,
+            &fonts.cell,
+        );
         if let Some(toast) = &self.toast
             && toast.is_visible(get_time())
         {
@@ -263,6 +339,14 @@ impl App {
         }
         if self.about.is_open() {
             draw_about(&self.about_layout(), self.about.ok_pressed(), &fonts.cell, get_time());
+        }
+        if self.number_dialog.is_open() {
+            draw_number_dialog(
+                &self.number_dialog,
+                &self.number_dialog_layout(),
+                &fonts.cell,
+                get_time(),
+            );
         }
     }
 }
@@ -417,5 +501,51 @@ mod tests {
         app.hint = Some(Hint::Safe(Position::new(0, 0)));
         app.apply(Command::NewGame);
         assert_eq!(app.hint, None);
+    }
+
+    #[test]
+    fn replay_plays_the_same_number_without_best_times() {
+        let mut app = app(Difficulty::Beginner);
+        let number = app.game.number();
+        app.game.reveal(Position::new(4, 4));
+
+        assert_eq!(app.apply(Command::Replay), None);
+        assert_eq!(app.game.number(), number);
+        assert_eq!(app.game.status(), GameStatus::Ready, "a fresh start of the same game");
+        assert!(!app.ranked, "a known layout can't set a record");
+        assert!(app.toast.is_some(), "the player is told");
+    }
+
+    #[test]
+    fn a_new_game_after_a_replay_counts_for_best_times_again() {
+        let mut app = app(Difficulty::Beginner);
+        app.apply(Command::Replay);
+        app.apply(Command::NewGame);
+        assert!(app.ranked);
+        app.apply(Command::Replay);
+        app.apply(Command::Start(Difficulty::Expert));
+        assert!(app.ranked);
+    }
+
+    #[test]
+    fn choose_game_opens_the_dialog_with_the_current_number() {
+        let mut app = app(Difficulty::Beginner);
+        app.apply(Command::ChooseGame);
+        assert!(app.number_dialog.is_open());
+        assert_eq!(app.number_dialog.number(), Some(app.game.number()));
+        assert!(!app.board_enabled(), "the dialog is modal");
+    }
+
+    #[test]
+    fn a_chosen_number_starts_that_game_without_best_times() {
+        let mut app = app(Difficulty::Intermediate);
+        assert_eq!(
+            app.apply(Command::StartNumbered(482_913)),
+            None,
+            "same difficulty, same window"
+        );
+        assert_eq!(app.game.number(), 482_913);
+        assert_eq!(board_size(&app), (16, 16));
+        assert!(!app.ranked);
     }
 }

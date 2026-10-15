@@ -4,7 +4,7 @@ use super::Command;
 use crate::logic::Difficulty;
 
 /// Every key that does something. `keyboard_command` only asks macroquad about these.
-const SHORTCUT_KEYS: [KeyCode; 10] = [
+const SHORTCUT_KEYS: [KeyCode; 12] = [
     KeyCode::F1,
     KeyCode::F2,
     KeyCode::Key1,
@@ -15,6 +15,8 @@ const SHORTCUT_KEYS: [KeyCode; 10] = [
     KeyCode::Kp3,
     KeyCode::C,
     KeyCode::H,
+    KeyCode::R,
+    KeyCode::G,
 ];
 
 /// The shortcut pressed this frame, if any.
@@ -27,7 +29,8 @@ pub fn keyboard_command() -> Option<Command> {
 }
 
 /// F1 = About, F2 = new game (both as in the original), 1/2/3 = Beginner/Intermediate/Expert
-/// (the number pad works too), H = hint, Ctrl+C = copy the board as text.
+/// (the number pad works too), R = replay this game, G = choose a game number, H = hint,
+/// Ctrl+C = copy the board as text.
 /// `ctrl`: a Control key is held down. Plain keys only count without it, so Ctrl+1 does nothing.
 pub fn command_for_key(key: KeyCode, ctrl: bool) -> Option<Command> {
     match (key, ctrl) {
@@ -36,6 +39,8 @@ pub fn command_for_key(key: KeyCode, ctrl: bool) -> Option<Command> {
         (KeyCode::F1, false) => Some(Command::About),
         (KeyCode::F2, false) => Some(Command::NewGame),
         (KeyCode::H, false) => Some(Command::Hint),
+        (KeyCode::R, false) => Some(Command::Replay),
+        (KeyCode::G, false) => Some(Command::ChooseGame),
         (KeyCode::Key1 | KeyCode::Kp1, false) => Some(Command::Start(Difficulty::Beginner)),
         (KeyCode::Key2 | KeyCode::Kp2, false) => Some(Command::Start(Difficulty::Intermediate)),
         (KeyCode::Key3 | KeyCode::Kp3, false) => Some(Command::Start(Difficulty::Expert)),
@@ -60,6 +65,8 @@ mod tests {
             (KeyCode::Kp3, false, Some(Command::Start(Difficulty::Expert))),
             (KeyCode::C, true, Some(Command::CopyBoard)),
             (KeyCode::H, false, Some(Command::Hint)),
+            (KeyCode::R, false, Some(Command::Replay)),
+            (KeyCode::G, false, Some(Command::ChooseGame)),
             (KeyCode::A, false, None),
             (KeyCode::Key4, false, None),
             (KeyCode::Escape, false, None),

@@ -6,11 +6,28 @@ use crate::scores::BestTimes;
 
 /// Draws the menu bar and, if a menu is `open` (index into `layout.menus`), its dropdown on
 /// top of everything else. `current` gets the check mark; each difficulty shows its best time.
-pub fn draw_menu(layout: &MenuLayout, open: Option<usize>, current: Difficulty, best: &BestTimes, font: &Font) {
+pub fn draw_menu(
+    layout: &MenuLayout,
+    open: Option<usize>,
+    current: Difficulty,
+    game_number: u32,
+    best: &BestTimes,
+    font: &Font,
+) {
     // The bar, with a thin line separating it from the window below.
     let bar = layout.bar;
     draw_rectangle(bar.x, bar.y, bar.w, bar.h, theme::BACKGROUND);
     draw_rectangle(bar.x, bar.bottom() - 1.0, bar.w, 1.0, theme::BEVEL_DARK);
+
+    // The game number on the right, so it can be read out and shared.
+    let number = format!("#{game_number}");
+    draw_label_right_aligned(
+        &number,
+        bar.right() - theme::MENU_PADDING,
+        bar,
+        theme::MENU_DIM_TEXT,
+        font,
+    );
 
     // The titles: the open one highlighted, like in Windows.
     for (index, menu) in layout.menus.iter().enumerate() {

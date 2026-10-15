@@ -81,6 +81,14 @@ pub const TITLE_BAR_END: Color = Color::from_rgba(0x10, 0x84, 0xD0, 0xFF);
 pub const TITLE_BAR_TEXT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 /// The little star that glints next to the mine in the About dialog.
 pub const SPARKLE: Color = Color::from_rgba(0xFF, 0xE0, 0x40, 0xFF);
+// --- "Choose game" dialog ---
+
+pub const NUMBER_DIALOG_WIDTH: f32 = 260.0;
+pub const NUMBER_LABEL_HEIGHT: f32 = 18.0;
+pub const NUMBER_FIELD_HEIGHT: f32 = 28.0;
+pub const NUMBER_FONT_SIZE: u16 = 16;
+pub const FIELD_BACKGROUND: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
+
 // --- Hint ---
 
 pub const HINT_SAFE: Color = Color::from_rgba(0x00, 0xB0, 0x00, 0xFF);

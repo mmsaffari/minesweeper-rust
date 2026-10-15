@@ -121,14 +121,16 @@ pub(crate) mod tests {
 
     #[test]
     fn shows_marks_and_opened_cells_but_never_hidden_mines() {
-        let mut game = Game::new(Difficulty::Beginner);
+        // A numbered game, so the test is the same on every run.
+        let mut game = Game::numbered(Difficulty::Beginner, 1);
         game.toggle_mark(Position::new(0, 0)); // flag
         game.toggle_mark(Position::new(0, 1));
         game.toggle_mark(Position::new(0, 1)); // question mark
-        game.reveal(Position::new(8, 8)); // the first click: safe, and the mines get placed
+        // Checked before opening anything: a flood may later open the `?`, as it should.
+        assert!(View::from_game(&game).to_string().starts_with("F?"));
 
+        game.reveal(Position::new(8, 8)); // the first click: safe, and the mines get placed
         let text = View::from_game(&game).to_string();
-        assert!(text.starts_with("F?"), "{text}");
         assert!(!text.contains('*'), "a hidden mine must never show:\n{text}");
         assert_ne!(text.lines().nth(8).unwrap().chars().last(), Some('#'), "(8, 8) is open");
     }

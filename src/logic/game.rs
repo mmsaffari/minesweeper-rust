@@ -7,9 +7,16 @@ use super::GameStatus;
 use super::Position;
 use super::generate_mines;
 use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 use std::time::Instant;
 
+/// The highest game number. Six digits are easy to read out and type, and still give
+/// a million different layouts per difficulty.
+pub const MAX_GAME_NUMBER: u32 = 999_999;
+
 pub struct Game {
+    /// Which game this is: the same number and difficulty always give the same mines.
+    number: u32,
     board: Board,
     status: GameStatus,
     rng: StdRng,
@@ -19,21 +26,29 @@ pub struct Game {
 }
 
 impl Game {
-    /// A new game with a truly random generator.
+    /// A new game with a random number.
     pub fn new(difficulty: Difficulty) -> Self {
-        Self::from_rng(difficulty, rand::make_rng())
+        Self::numbered(difficulty, rand::rng().random_range(1..=MAX_GAME_NUMBER))
     }
 
-    fn from_rng(difficulty: Difficulty, rng: StdRng) -> Self {
+    /// Game number `number`: the mine layout comes only from the number (and the difficulty),
+    /// so the same number is always the same game. (Except for the one mine that moves if
+    /// the first click lands on it; see `generate_mines`.)
+    pub fn numbered(difficulty: Difficulty, number: u32) -> Self {
         let properties = difficulty.board_properties();
         Self {
+            number,
             board: Board::new(properties),
             status: GameStatus::default(),
-            rng,
+            rng: StdRng::seed_from_u64(u64::from(number)),
             properties,
             started_at: None,
             ended_at: None,
         }
+    }
+
+    pub fn number(&self) -> u32 {
+        self.number
     }
 
     pub fn status(&self) -> GameStatus {
@@ -218,6 +233,14 @@ mod tests {
         game.board().cell(pos).expect("position should be on the board").state
     }
 
+    fn mine_positions(game: &Game) -> Vec<Position> {
+        let board = game.board();
+        (0..board.rows())
+            .flat_map(|row| (0..board.cols()).map(move |col| p(row, col)))
+            .filter(|&pos| board.cell(pos).is_some_and(|cell| cell.is_mine()))
+            .collect()
+    }
+
     fn mine_count(game: &Game) -> usize {
         game.board()
             .cells
@@ -263,17 +286,12 @@ mod tests {
         game(5, 5, &[p(2, 0), p(2, 1), p(2, 2), p(2, 3), p(2, 4)])
     }
 
-    /// A new game whose mine layout is repeatable: same seed, same layout.
-    /// (`from_rng` is private, but a child module like `tests` can still call it.)
-    fn seeded_game(difficulty: Difficulty, seed: u64) -> Game {
-        Game::from_rng(difficulty, StdRng::seed_from_u64(seed))
-    }
-
     /// Mines already placed and status Playing, as if the first click already happened.
     fn with_mines(properties: BoardProperties, mines: &[Position]) -> Game {
         let mut board = Board::new(properties);
         board.place_mines(mines);
         Game {
+            number: 0,
             board,
             status: GameStatus::Playing,
             rng: StdRng::seed_from_u64(0),
@@ -312,7 +330,7 @@ mod tests {
         #[test]
         fn first_reveal_places_all_mines_but_never_under_the_click() {
             for seed in 0..50 {
-                let mut game = seeded_game(Difficulty::Beginner, seed);
+                let mut game = Game::numbered(Difficulty::Beginner, seed);
                 game.reveal(p(4, 4));
                 assert_eq!(mine_count(&game), 10, "seed {seed}");
                 assert_eq!(state_at(&game, p(4, 4)), CellState::Revealed, "seed {seed}");
@@ -325,8 +343,29 @@ mod tests {
         }
 
         #[test]
+        fn a_new_game_gets_a_random_number_in_range() {
+            let numbers: std::collections::HashSet<u32> =
+                (0..20).map(|_| Game::new(Difficulty::Beginner).number()).collect();
+            assert!(numbers.iter().all(|n| (1..=MAX_GAME_NUMBER).contains(n)), "{numbers:?}");
+            assert!(numbers.len() > 1, "20 new games all got the same number");
+        }
+
+        /// The point of game numbers: share one, and the other player gets the same mines.
+        #[test]
+        fn the_same_number_is_the_same_game() {
+            for number in [1, 42, 482_913] {
+                let mut first = Game::numbered(Difficulty::Intermediate, number);
+                let mut second = Game::numbered(Difficulty::Intermediate, number);
+                first.reveal(p(0, 0));
+                second.reveal(p(0, 0));
+                assert_eq!(first.number(), number);
+                assert_eq!(mine_positions(&first), mine_positions(&second), "game {number}");
+            }
+        }
+
+        #[test]
         fn first_reveal_starts_the_game() {
-            let mut game = seeded_game(Difficulty::Expert, 7);
+            let mut game = Game::numbered(Difficulty::Expert, 7);
             game.reveal(p(0, 0));
             assert_eq!(game.status(), GameStatus::Playing);
         }
@@ -643,7 +682,7 @@ mod tests {
 
         #[test]
         fn starts_on_the_first_reveal() {
-            let mut game = seeded_game(Difficulty::Beginner, 1);
+            let mut game = Game::numbered(Difficulty::Beginner, 1);
             assert!(game.started_at.is_none());
             game.reveal(p(4, 4));
             assert!(game.started_at.is_some(), "the first reveal must start the timer");

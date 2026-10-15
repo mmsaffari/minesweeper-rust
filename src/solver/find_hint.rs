@@ -148,19 +148,20 @@ mod tests {
 
     // --- against real games ---
 
-    /// Property test: play real random games using nothing but hints, and check every hint
+    /// Property test: play 280 real games using nothing but hints, and check every hint
     /// against where the mines really are. A safe hint must never be a mine, a mine hint must
     /// always be one, and following the hints must never lose the game.
     #[test]
     fn hints_are_always_right_in_real_games() {
         let games = [
-            (Difficulty::Beginner, 40),
-            (Difficulty::Intermediate, 15),
-            (Difficulty::Expert, 5),
+            (Difficulty::Beginner, 200),
+            (Difficulty::Intermediate, 60),
+            (Difficulty::Expert, 20),
         ];
         for (difficulty, count) in games {
-            for _ in 0..count {
-                let mut game = Game::new(difficulty);
+            // Numbered games: the same games on every run, and a failure names the game.
+            for number in 1..=count {
+                let mut game = Game::numbered(difficulty, number);
                 game.reveal(p(4, 4)); // the first click, always safe
 
                 while game.status() == GameStatus::Playing {
@@ -168,7 +169,7 @@ mod tests {
                         Hint::Safe(pos) => {
                             assert!(
                                 !is_mine(&game, pos),
-                                "{difficulty:?}: {pos:?} isn't safe\n{}",
+                                "{difficulty:?} #{number}: {pos:?} isn't safe\n{}",
                                 show(&game)
                             );
                             game.reveal(pos);
@@ -176,7 +177,7 @@ mod tests {
                         Hint::Mine(pos) => {
                             assert!(
                                 is_mine(&game, pos),
-                                "{difficulty:?}: {pos:?} isn't a mine\n{}",
+                                "{difficulty:?} #{number}: {pos:?} isn't a mine\n{}",
                                 show(&game)
                             );
                             game.toggle_mark(pos);
@@ -184,7 +185,11 @@ mod tests {
                         Hint::NoSureMove => break,
                     }
                 }
-                assert_ne!(game.status(), GameStatus::Lost, "following hints lost the game");
+                assert_ne!(
+                    game.status(),
+                    GameStatus::Lost,
+                    "{difficulty:?} #{number}: following hints lost"
+                );
             }
         }
     }

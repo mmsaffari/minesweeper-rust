@@ -64,6 +64,15 @@ mod tests {
         MenuLayout::new(400.0)
     }
 
+    /// A menu's item by what it does, not by where it is (new items mustn't break tests).
+    fn item(layout: &MenuLayout, menu: usize, command: Command) -> crate::ui::MenuItem {
+        *layout.menus[menu]
+            .items
+            .iter()
+            .find(|item| item.command == command)
+            .expect("item in the menu")
+    }
+
     fn opened(menu: usize) -> Menu {
         Menu { open: Some(menu) }
     }
@@ -100,7 +109,7 @@ mod tests {
         let layout = layout();
 
         let mut menu = opened(GAME);
-        let expert = layout.menus[GAME].items[3];
+        let expert = item(&layout, GAME, Command::Start(Difficulty::Expert));
         assert_eq!(
             menu.click(expert.rect.center(), &layout),
             MenuClick::Chose(Command::Start(Difficulty::Expert))
@@ -152,7 +161,7 @@ mod tests {
         let layout = layout();
         let mut menu = Menu::default();
         // The dropdown isn't visible, so its area is just the board/header behind it.
-        let expert = layout.menus[GAME].items[3].rect.center();
+        let expert = item(&layout, GAME, Command::Start(Difficulty::Expert)).rect.center();
         assert_eq!(menu.click(expert, &layout), MenuClick::NotMine);
     }
 }

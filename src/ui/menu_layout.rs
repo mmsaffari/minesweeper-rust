@@ -12,8 +12,10 @@ pub struct MenuLayout {
 
 type Entry = (&'static str, &'static str, Command);
 
-const GAME: [Entry; 6] = [
+const GAME: [Entry; 8] = [
     ("New", "F2", Command::NewGame),
+    ("Replay", "R", Command::Replay),
+    ("Choose game...", "G", Command::ChooseGame),
     ("Beginner", "1", Command::Start(Difficulty::Beginner)),
     ("Intermediate", "2", Command::Start(Difficulty::Intermediate)),
     ("Expert", "3", Command::Start(Difficulty::Expert)),
@@ -112,6 +114,8 @@ mod tests {
             commands(&layout.menus[0]),
             [
                 Command::NewGame,
+                Command::Replay,
+                Command::ChooseGame,
                 Command::Start(Difficulty::Beginner),
                 Command::Start(Difficulty::Intermediate),
                 Command::Start(Difficulty::Expert),

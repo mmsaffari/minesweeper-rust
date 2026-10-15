@@ -6,6 +6,10 @@ use super::Position;
 
 /// Picks `properties.mines` distinct random positions on the board, never `safe`.
 /// Panics (with a message containing "room") unless `mines < rows * cols`.
+///
+/// Like the original, the layout is drawn from *every* cell, so it depends only on `rng`
+/// (that is, on the game number), not on where the first click is. Only if a mine lands
+/// on `safe` does that one mine move, to the first free cell counting from the top left.
 pub fn generate_mines(properties: BoardProperties, safe: Position, rng: &mut impl Rng) -> Vec<Position> {
     assert!(
         properties.mines < properties.rows * properties.cols,
@@ -15,15 +19,24 @@ pub fn generate_mines(properties: BoardProperties, safe: Position, rng: &mut imp
         properties.cols
     );
 
-    let candidates = (0..properties.rows)
+    let all_cells = (0..properties.rows)
         .flat_map(|row| (0..properties.cols).map(move |col| Position::new(row, col)))
-        .filter(|&pos| pos != safe)
         .collect::<Vec<Position>>();
 
-    candidates
+    let mut mines = all_cells
         .sample(rng, properties.mines)
         .copied()
-        .collect::<Vec<Position>>()
+        .collect::<Vec<Position>>();
+
+    if let Some(index) = mines.iter().position(|&mine| mine == safe) {
+        let free = all_cells
+            .iter()
+            .copied()
+            .find(|cell| *cell != safe && !mines.contains(cell))
+            .expect("there are fewer mines than cells, checked above");
+        mines[index] = free;
+    }
+    mines
 }
 
 #[cfg(test)]
@@ -104,6 +117,51 @@ mod tests {
             generate_mines(beginner, p(0, 0), &mut seeded(42)),
             generate_mines(beginner, p(0, 0), &mut seeded(42)),
         );
+    }
+
+    /// The layout a seed gives before any first click is taken into account
+    /// (a "safe" cell off the board never matches a mine).
+    fn raw_layout(seed: u64) -> Vec<Position> {
+        generate_mines(props(9, 9, 10), p(99, 99), &mut seeded(seed))
+    }
+
+    /// That's what makes game numbers shareable: the same number is the same game,
+    /// wherever the first click goes.
+    #[test]
+    fn the_layout_comes_from_the_seed_not_from_the_first_click() {
+        for seed in 0..20 {
+            let raw = raw_layout(seed);
+            for row in 0..9 {
+                for col in 0..9 {
+                    let first_click = p(row, col);
+                    if !raw.contains(&first_click) {
+                        let mines = generate_mines(props(9, 9, 10), first_click, &mut seeded(seed));
+                        assert_eq!(mines, raw, "seed {seed}, first click {first_click:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// Like the original: only the mine under the first click moves, to the first free cell
+    /// counting from the top left.
+    #[test]
+    fn a_mine_under_the_first_click_moves_to_the_first_free_cell() {
+        for seed in 0..20 {
+            let raw = raw_layout(seed);
+            let first_click = raw[0];
+            let first_free = (0..9)
+                .flat_map(|r| (0..9).map(move |c| p(r, c)))
+                .find(|&cell| cell != first_click && !raw.contains(&cell))
+                .unwrap();
+            let mut expected = raw.clone();
+            expected[0] = first_free;
+            assert_eq!(
+                generate_mines(props(9, 9, 10), first_click, &mut seeded(seed)),
+                expected,
+                "seed {seed}"
+            );
+        }
     }
 
     /// Guards against an implementation that ignores `rng` and always returns the same cells.

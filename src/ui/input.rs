@@ -1,5 +1,6 @@
 use macroquad::input::{
-    MouseButton, is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released, mouse_position,
+    MouseButton, get_char_pressed, is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released,
+    mouse_position,
 };
 use macroquad::math::Vec2;
 
@@ -47,6 +48,13 @@ pub fn left_pressed() -> bool {
 /// The left button was released this frame (where dialog buttons look for clicks).
 pub fn left_released() -> bool {
     is_mouse_button_released(MouseButton::Left)
+}
+
+/// The characters typed since the last call. macroquad keeps them in a queue that only
+/// empties when read, so the app reads it every frame: otherwise everything typed while
+/// no text field is open would pour into the next one.
+pub fn typed_chars() -> Vec<char> {
+    std::iter::from_fn(get_char_pressed).collect()
 }
 
 pub fn mouse() -> Vec2 {

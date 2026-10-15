@@ -4,8 +4,14 @@ use crate::logic::Difficulty;
 /// the face button, or (later) the menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
-    /// Start over with the same difficulty.
+    /// Start over with the same difficulty and a new random game number.
     NewGame,
+    /// Play the current game number again: the same mines.
+    Replay,
+    /// Open the dialog to type a game number.
+    ChooseGame,
+    /// Play this game number (chosen in the dialog).
+    StartNumbered(u32),
     /// Start over with this difficulty (the window resizes to fit).
     Start(Difficulty),
     /// Show the About dialog.

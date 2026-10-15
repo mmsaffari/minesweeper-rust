@@ -15,7 +15,7 @@ pub use cell::Cell;
 pub use cell_content::CellContent;
 pub use cell_state::CellState;
 pub use difficulty::Difficulty;
-pub use game::Game;
+pub use game::{Game, MAX_GAME_NUMBER};
 pub use game_status::GameStatus;
 pub use mine_generator::generate_mines;
 pub use position::Position;

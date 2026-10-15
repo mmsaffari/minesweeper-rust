@@ -11,13 +11,18 @@ mod storage;
 mod ui;
 mod updates;
 
-use macroquad::miniquad::conf::Icon;
+use std::time::Instant;
+
+use macroquad::miniquad::conf::{Icon, Platform};
 use macroquad::prelude::*;
 
 use crate::app::App;
 use crate::logic::Difficulty;
 use crate::storage::Stored;
-use crate::ui::{BoardLayout, Fonts, app_icon_rgba, window_size};
+use crate::ui::{BoardLayout, Fonts, FramePacer, app_icon_rgba, window_size};
+
+/// Plenty for Minesweeper, and a fraction of what a fast screen would otherwise get.
+const FRAMES_PER_SECOND: u32 = 60;
 
 /// Runs before `main`, so it can't see the `App`: it only needs the starting window size.
 fn window_conf() -> Conf {
@@ -28,6 +33,12 @@ fn window_conf() -> Conf {
         window_height: size.y as i32,
         window_resizable: false,
         icon: Some(window_icon()),
+        platform: Platform {
+            // No vsync: some drivers keep a CPU core busy waiting for the screen's next
+            // refresh. `FramePacer` sets the pace instead, and sleeps while it waits.
+            swap_interval: Some(0),
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -49,12 +60,14 @@ async fn main() {
     let mut app = App::new(Difficulty::default(), best_times, settings);
     app.start_update_check();
     let fonts = Fonts::load();
+    let mut pacer = FramePacer::new(FRAMES_PER_SECOND, Instant::now());
 
     loop {
         if let Some(size) = app.update() {
             request_new_screen_size(size.x, size.y);
         }
         app.draw(&fonts);
+        pacer.wait();
         next_frame().await
     }
 }

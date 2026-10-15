@@ -9,17 +9,25 @@ Written as a project for learning Rust.
 
 ## Download
 
-Get the latest Windows build from [Releases](https://github.com/mmsaffari/minesweeper-rust/releases/latest):
-unzip it and run `minesweeper.exe`.
+<a href="https://apps.microsoft.com/detail/9P25P9L8R8Z3?referrer=appbadge&mode=direct">
+  <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="200">
+</a>
 
-The executable isn't code-signed, so Windows SmartScreen will warn the first time
-("Windows protected your PC" → **More info** → **Run anyway**). On a PC with
-Smart App Control turned on, Windows may refuse to run it at all; build it from source instead.
+The easiest way: **[Classic Mine Sweeper](https://apps.microsoft.com/detail/9P25P9L8R8Z3)** in the
+Microsoft Store. Microsoft signs it, so it runs even with Smart App Control on, and the Store
+keeps it up to date.
+
+Or get the latest build from [Releases](https://github.com/mmsaffari/minesweeper-rust/releases/latest):
+unzip it and run `minesweeper.exe`. This executable isn't code-signed, so Windows SmartScreen
+will warn the first time ("Windows protected your PC" → **More info** → **Run anyway**). On a
+PC with Smart App Control turned on, Windows may refuse to run it at all; use the Store
+version, or build it from source.
 
 ### Update check
 
-The release build looks for a newer release **once at startup**: one request to
-`api.github.com` for this repository's latest release, nothing else sent or stored. If there is
+The GitHub release build (not the Store version, which the Store updates) looks for a newer
+release **once at startup**: one request to `api.github.com` for this repository's latest
+release, nothing else sent or stored. If there is
 one, it says so and **Help → Get new version...** opens the release page; it never downloads
 anything itself. Turn it off with **Help → Check for updates**. Builds from source don't check
 unless you ask for it: `cargo run --release --features update-check`. Details: [PRIVACY.md](PRIVACY.md).

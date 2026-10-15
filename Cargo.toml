@@ -1,6 +1,6 @@
 [package]
 name = "minesweeper"
-version = "1.3.1"
+version = "1.3.2"
 edition = "2024"
 description = "The classic Windows Minesweeper, rebuilt in Rust with macroquad"
 license = "MIT OR Apache-2.0"

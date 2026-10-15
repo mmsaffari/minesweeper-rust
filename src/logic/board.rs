@@ -42,16 +42,20 @@ impl Board {
     }
 
     pub fn neighbours(&self, pos: Position) -> Vec<Position> {
-        let mut result: Vec<Position> = Vec::with_capacity(8);
-        for i in [-1, 0, 1] {
-            for j in [-1, 0, 1] {
-                if i == 0 && j == 0 {
+        let mut result = Vec::with_capacity(8);
+        for dr in [-1, 0, 1] {
+            for dc in [-1, 0, 1] {
+                if dr == 0 && dc == 0 {
                     continue;
                 }
-                let n_row = pos.row as isize + i;
-                let n_col = pos.col as isize + j;
-                if n_row >= 0 && n_row < self.rows as isize && n_col >= 0 && n_col < self.cols as isize {
-                    result.push(Position::new(n_row as usize, n_col as usize));
+                // `checked_add_signed` gives `None` below 0 (the top/left edges);
+                // `contains` rules out the bottom/right edges. No casts needed.
+                let (Some(row), Some(col)) = (pos.row.checked_add_signed(dr), pos.col.checked_add_signed(dc)) else {
+                    continue;
+                };
+                let neighbour = Position::new(row, col);
+                if self.contains(neighbour) {
+                    result.push(neighbour);
                 }
             }
         }

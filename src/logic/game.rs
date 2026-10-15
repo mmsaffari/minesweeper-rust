@@ -5,7 +5,6 @@ use super::Difficulty;
 use super::GameStatus;
 use super::Position;
 use super::generate_mines;
-use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::time::Instant;
 
@@ -22,11 +21,6 @@ impl Game {
     /// A new game with a truly random generator.
     pub fn new(difficulty: Difficulty) -> Self {
         Self::from_rng(difficulty, rand::make_rng())
-    }
-
-    /// A new game whose mine layout is repeatable: same seed, same layout.
-    pub fn with_seed(difficulty: Difficulty, seed: u64) -> Self {
-        Self::from_rng(difficulty, StdRng::seed_from_u64(seed))
     }
 
     fn from_rng(difficulty: Difficulty, rng: StdRng) -> Self {
@@ -194,6 +188,7 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::SeedableRng;
     use std::time::Duration;
 
     // --- helpers ---
@@ -256,6 +251,12 @@ mod tests {
         game(5, 5, &[p(2, 0), p(2, 1), p(2, 2), p(2, 3), p(2, 4)])
     }
 
+    /// A new game whose mine layout is repeatable: same seed, same layout.
+    /// (`from_rng` is private, but a child module like `tests` can still call it.)
+    fn seeded_game(difficulty: Difficulty, seed: u64) -> Game {
+        Game::from_rng(difficulty, StdRng::seed_from_u64(seed))
+    }
+
     /// Mines already placed and status Playing, as if the first click already happened.
     fn with_mines(properties: BoardProperties, mines: &[Position]) -> Game {
         let mut board = Board::new(properties);
@@ -299,7 +300,7 @@ mod tests {
         #[test]
         fn first_reveal_places_all_mines_but_never_under_the_click() {
             for seed in 0..50 {
-                let mut game = Game::with_seed(Difficulty::Beginner, seed);
+                let mut game = seeded_game(Difficulty::Beginner, seed);
                 game.reveal(p(4, 4));
                 assert_eq!(mine_count(&game), 10, "seed {seed}");
                 assert_eq!(state_at(&game, p(4, 4)), CellState::Revealed, "seed {seed}");
@@ -313,7 +314,7 @@ mod tests {
 
         #[test]
         fn first_reveal_starts_the_game() {
-            let mut game = Game::with_seed(Difficulty::Expert, 7);
+            let mut game = seeded_game(Difficulty::Expert, 7);
             game.reveal(p(0, 0));
             assert_eq!(game.status(), GameStatus::Playing);
         }
@@ -630,7 +631,7 @@ mod tests {
 
         #[test]
         fn starts_on_the_first_reveal() {
-            let mut game = Game::with_seed(Difficulty::Beginner, 1);
+            let mut game = seeded_game(Difficulty::Beginner, 1);
             assert!(game.started_at.is_none());
             game.reveal(p(4, 4));
             assert!(game.started_at.is_some(), "the first reveal must start the timer");

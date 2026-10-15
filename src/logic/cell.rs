@@ -8,6 +8,19 @@ pub struct Cell {
 }
 
 impl Cell {
+    /// Read-only, for the UI (which lives outside `logic`, so it can't see the fields).
+    pub fn state(&self) -> CellState {
+        self.state
+    }
+
+    pub fn is_mine(&self) -> bool {
+        self.is_mine
+    }
+
+    pub fn adjacent_mines(&self) -> u8 {
+        self.adjacent_mines
+    }
+
     pub fn cycle_mark(&mut self) {
         self.state = match self.state {
             CellState::Revealed => CellState::Revealed,
@@ -39,6 +52,21 @@ mod tests {
             state,
             ..Default::default()
         }
+    }
+
+    // --- getters ---
+
+    #[test]
+    fn getters_return_the_fields() {
+        let cell = Cell {
+            is_mine: true,
+            adjacent_mines: 3,
+            state: Flagged,
+        };
+        assert_eq!(
+            (cell.state(), cell.is_mine(), cell.adjacent_mines()),
+            (Flagged, true, 3)
+        );
     }
 
     // --- default ---

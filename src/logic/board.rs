@@ -20,6 +20,15 @@ impl Board {
         }
     }
 
+    /// Read-only, for the UI (which lives outside `logic`, so it can't see the fields).
+    pub fn rows(&self) -> usize {
+        self.rows
+    }
+
+    pub fn cols(&self) -> usize {
+        self.cols
+    }
+
     pub fn contains(&self, pos: Position) -> bool {
         self.cell(pos).is_some()
     }
@@ -124,6 +133,12 @@ mod tests {
     }
 
     // --- new ---
+
+    #[test]
+    fn rows_and_cols_match_the_properties() {
+        let board = board(4, 7);
+        assert_eq!((board.rows(), board.cols()), (4, 7));
+    }
 
     #[test]
     fn new_board_has_rows_times_cols_cells() {

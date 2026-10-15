@@ -1,5 +1,11 @@
 mod logic;
+mod ui;
 use macroquad::prelude::*;
+
+use crate::{
+    logic::{Difficulty, Game, Position},
+    ui::{BoardLayout, draw_board, theme},
+};
 
 fn window_conf() -> Conf {
     Conf {
@@ -13,9 +19,19 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    loop {
-        clear_background(LIGHTGRAY);
+    let mut game = Game::with_seed(Difficulty::Beginner, 1);
+    game.reveal(Position::new(1, 1));
 
+    let layout = BoardLayout::new(
+        vec2(12.0, 60.0),
+        theme::CELL_SIZE,
+        game.board().rows(),
+        game.board().cols(),
+    );
+
+    loop {
+        clear_background(theme::BACKGROUND);
+        draw_board(&game, &layout);
         next_frame().await
     }
 }

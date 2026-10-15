@@ -1,8 +1,5 @@
 mod logic;
 use macroquad::prelude::*;
-use std::time::Duration;
-
-const FRAME_TIME: Duration = Duration::from_millis(33);
 
 fn window_conf() -> Conf {
     Conf {
@@ -18,8 +15,6 @@ fn window_conf() -> Conf {
 async fn main() {
     loop {
         clear_background(LIGHTGRAY);
-
-        std::thread::sleep(FRAME_TIME);
 
         next_frame().await
     }

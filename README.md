@@ -22,7 +22,7 @@ The release build looks for a newer release **once at startup**: one request to
 `api.github.com` for this repository's latest release, nothing else sent or stored. If there is
 one, it says so and **Help → Get new version...** opens the release page; it never downloads
 anything itself. Turn it off with **Help → Check for updates**. Builds from source don't check
-unless you ask for it: `cargo run --release --features update-check`.
+unless you ask for it: `cargo run --release --features update-check`. Details: [PRIVACY.md](PRIVACY.md).
 
 ## How to play
 

@@ -1,6 +1,7 @@
 use macroquad::math::{Rect, Vec2};
 
-use crate::logic::Position;
+use super::theme;
+use crate::logic::{Difficulty, Position};
 
 /// Where the board sits in the window, in pixels.
 /// Drawing and mouse clicks both use this, so they can never disagree.
@@ -21,6 +22,17 @@ impl BoardLayout {
             rows,
             cols,
         }
+    }
+
+    /// The game's real layout: the board's size from the difficulty, placed at the theme's margins.
+    pub fn for_difficulty(difficulty: Difficulty) -> Self {
+        let props = difficulty.board_properties();
+        Self::new(
+            Vec2::new(theme::SIDE_MARGIN, theme::TOP_MARGIN),
+            theme::CELL_SIZE,
+            props.rows,
+            props.cols,
+        )
     }
 
     /// Width and height of the whole board.
@@ -92,6 +104,18 @@ mod tests {
     /// ```
     fn layout() -> BoardLayout {
         BoardLayout::new(Vec2::new(10.0, 60.0), 20.0, 3, 4)
+    }
+
+    // --- for_difficulty ---
+
+    #[test]
+    fn for_difficulty_sizes_the_board_and_places_it_at_the_margins() {
+        let expert = BoardLayout::for_difficulty(Difficulty::Expert);
+        let size = Vec2::new(30.0, 16.0) * theme::CELL_SIZE; // 30 columns wide, 16 rows tall
+        assert_eq!(
+            expert.rect(),
+            Rect::new(theme::SIDE_MARGIN, theme::TOP_MARGIN, size.x, size.y)
+        );
     }
 
     // --- size / cell_rect ---

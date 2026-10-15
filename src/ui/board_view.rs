@@ -17,6 +17,20 @@ pub fn draw_board(game: &Game, layout: &BoardLayout) {
             }
         }
     }
+
+    draw_sunken_frame(layout.rect());
+}
+
+/// The board sits "in" the window: dark edge top/left, light edge bottom/right, just outside
+/// the cells (the opposite of a raised cell). It also closes the board's right and bottom
+/// edges, which the cells don't draw, because each cell only draws its own top/left grid line.
+fn draw_sunken_frame(board: Rect) {
+    let b = theme::BEVEL;
+    let Rect { x, y, w, h } = Rect::new(board.x - b, board.y - b, board.w + 2.0 * b, board.h + 2.0 * b);
+    draw_rectangle(x, y, w, b, theme::BEVEL_DARK); // top
+    draw_rectangle(x, y, b, h, theme::BEVEL_DARK); // left
+    draw_rectangle(x, y + h - b, w, b, theme::BEVEL_LIGHT); // bottom
+    draw_rectangle(x + w - b, y, b, h, theme::BEVEL_LIGHT); // right
 }
 
 fn draw_cell(cell: &Cell, rect: Rect, lost: bool) {

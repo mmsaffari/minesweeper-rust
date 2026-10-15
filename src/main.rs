@@ -7,11 +7,24 @@ use crate::{
     ui::{BoardLayout, draw_board, theme},
 };
 
+const DIFFICULTY: Difficulty = Difficulty::Beginner;
+
+fn layout_for(difficulty: Difficulty) -> BoardLayout {
+    let props = difficulty.board_properties();
+    BoardLayout::new(
+        vec2(theme::SIDE_MARGIN, theme::TOP_MARGIN),
+        theme::CELL_SIZE,
+        props.rows,
+        props.cols,
+    )
+}
+
 fn window_conf() -> Conf {
+    let board = layout_for(DIFFICULTY).size();
     Conf {
         window_title: "Minesweeper".to_owned(),
-        window_width: 300,
-        window_height: 400,
+        window_width: (theme::SIDE_MARGIN + board.x + theme::SIDE_MARGIN) as i32,
+        window_height: (theme::TOP_MARGIN + board.y + theme::BOTTOM_MARGIN) as i32,
         window_resizable: false,
         ..Default::default()
     }
@@ -19,15 +32,10 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut game = Game::with_seed(Difficulty::Beginner, 1);
+    let mut game = Game::with_seed(DIFFICULTY, 1);
     game.reveal(Position::new(1, 1));
 
-    let layout = BoardLayout::new(
-        vec2(12.0, 60.0),
-        theme::CELL_SIZE,
-        game.board().rows(),
-        game.board().cols(),
-    );
+    let layout = layout_for(DIFFICULTY);
 
     loop {
         clear_background(theme::BACKGROUND);

@@ -11,6 +11,10 @@ pub const GRID_LINE: f32 = 1.0;
 /// For numbers, flags and question marks. `measure_text` wants a `u16`.
 pub const FONT_SIZE: u16 = 22;
 
+pub const SIDE_MARGIN: f32 = 12.0;
+pub const TOP_MARGIN: f32 = 60.0;
+pub const BOTTOM_MARGIN: f32 = 12.0;
+
 pub const BACKGROUND: Color = Color::from_rgba(0xC0, 0xC0, 0xC0, 0xFF);
 pub const BEVEL_LIGHT: Color = Color::from_rgba(0xFF, 0xFF, 0xFF, 0xFF);
 pub const BEVEL_DARK: Color = Color::from_rgba(0x80, 0x80, 0x80, 0xFF);

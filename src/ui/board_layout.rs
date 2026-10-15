@@ -29,6 +29,12 @@ impl BoardLayout {
         Vec2::new(self.cols as f32, self.rows as f32) * self.cell_size
     }
 
+    /// The area covered by all cells together.
+    pub fn rect(&self) -> Rect {
+        let size = self.size();
+        Rect::new(self.origin.x, self.origin.y, size.x, size.y)
+    }
+
     /// The square a cell is drawn in.
     pub fn cell_rect(&self, pos: Position) -> Rect {
         let top_left = self.origin + Vec2::new(pos.col as f32, pos.row as f32) * self.cell_size;
@@ -93,6 +99,11 @@ mod tests {
     #[test]
     fn size_is_cols_by_rows_cells() {
         assert_eq!(layout().size(), Vec2::new(80.0, 60.0));
+    }
+
+    #[test]
+    fn rect_covers_the_whole_board() {
+        assert_eq!(layout().rect(), Rect::new(10.0, 60.0, 80.0, 60.0));
     }
 
     #[test]

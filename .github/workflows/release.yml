@@ -32,7 +32,8 @@ jobs:
       # `--locked`: build with exactly the dependency versions in Cargo.lock.
       - run: cargo build --release --locked
 
-      # The fonts are compiled into the .exe; their licenses (SIL OFL) must be shipped with it.
+      # The game's own licenses, plus the fonts' (SIL OFL): the fonts are compiled into the .exe,
+      # and their license must be shipped with it.
       - name: Package
         shell: pwsh
         run: |
@@ -40,6 +41,7 @@ jobs:
           New-Item -ItemType Directory -Path "$dir/licenses" | Out-Null
           Copy-Item target/release/minesweeper.exe $dir/
           Copy-Item assets/fonts/*LICENSE*.txt "$dir/licenses/"
+          Copy-Item LICENSE-MIT, LICENSE-APACHE, README.md $dir/
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
 
       - name: Publish the release

@@ -1,0 +1,17 @@
+# Dependabot opens pull requests to keep dependencies up to date.
+# (Security fixes for known vulnerabilities come separately and immediately; this is the weekly routine.)
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # One PR for all minor/patch updates instead of one per crate.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

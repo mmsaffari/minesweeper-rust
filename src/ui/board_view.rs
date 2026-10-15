@@ -5,7 +5,7 @@ use super::theme;
 use crate::logic::{Cell, CellState, Game, GameStatus, Position};
 
 /// Draws every cell of the board. Only reads the game; changing it is the input's job.
-pub fn draw_board(game: &Game, layout: &BoardLayout) {
+pub fn draw_board(game: &Game, layout: &BoardLayout, font: &Font) {
     let board = game.board();
     let lost = game.status() == GameStatus::Lost;
 
@@ -13,7 +13,7 @@ pub fn draw_board(game: &Game, layout: &BoardLayout) {
         for col in 0..board.cols() {
             let pos = Position::new(row, col);
             if let Some(cell) = board.cell(pos) {
-                draw_cell(cell, layout.cell_rect(pos), lost);
+                draw_cell(cell, layout.cell_rect(pos), lost, font);
             }
         }
     }
@@ -33,11 +33,11 @@ fn draw_sunken_frame(board: Rect) {
     draw_rectangle(x + w - b, y, b, h, theme::BEVEL_LIGHT); // right
 }
 
-fn draw_cell(cell: &Cell, rect: Rect, lost: bool) {
+fn draw_cell(cell: &Cell, rect: Rect, lost: bool, font: &Font) {
     // Arms are tried top to bottom, so the special "game lost" cases (with `if` guards)
     // must come before the normal arms for the same state.
     match cell.state() {
-        CellState::Revealed => draw_revealed(cell, rect),
+        CellState::Revealed => draw_revealed(cell, rect, font),
 
         // After losing, show every mine the player hadn't found...
         CellState::Hidden | CellState::Questioned if lost && cell.is_mine() => {
@@ -54,16 +54,16 @@ fn draw_cell(cell: &Cell, rect: Rect, lost: bool) {
         CellState::Hidden => draw_raised(rect),
         CellState::Flagged => {
             draw_raised(rect);
-            draw_centered_text("F", rect, theme::FLAG);
+            draw_centered_text("F", rect, theme::FLAG, font);
         }
         CellState::Questioned => {
             draw_raised(rect);
-            draw_centered_text("?", rect, theme::QUESTION_MARK);
+            draw_centered_text("?", rect, theme::QUESTION_MARK, font);
         }
     }
 }
 
-fn draw_revealed(cell: &Cell, rect: Rect) {
+fn draw_revealed(cell: &Cell, rect: Rect, font: &Font) {
     if cell.is_mine() {
         // The only revealed mine is the one that was clicked.
         draw_flat(rect, theme::EXPLODED);
@@ -72,7 +72,7 @@ fn draw_revealed(cell: &Cell, rect: Rect) {
         draw_flat(rect, theme::BACKGROUND);
         let n = cell.adjacent_mines();
         if n > 0 {
-            draw_centered_text(&n.to_string(), rect, theme::number_color(n));
+            draw_centered_text(&n.to_string(), rect, theme::number_color(n), font);
         }
     }
 }
@@ -119,9 +119,15 @@ fn draw_cross(rect: Rect) {
 
 /// `draw_text`'s y is the text's baseline (the line letters sit on), not its top,
 /// so centring needs the size `measure_text` reports.
-fn draw_centered_text(text: &str, rect: Rect, color: Color) {
-    let size = measure_text(text, None, theme::FONT_SIZE, 1.0);
+fn draw_centered_text(text: &str, rect: Rect, color: Color, font: &Font) {
+    let size = measure_text(text, Some(font), theme::FONT_SIZE, 1.0);
     let x = rect.x + (rect.w - size.width) / 2.0;
     let y = rect.y + (rect.h - size.height) / 2.0 + size.offset_y;
-    draw_text(text, x, y, f32::from(theme::FONT_SIZE), color);
+    let params = TextParams {
+        font: Some(font),
+        font_size: theme::FONT_SIZE,
+        color,
+        ..Default::default()
+    };
+    draw_text_ex(text, x, y, params);
 }

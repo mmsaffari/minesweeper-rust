@@ -4,7 +4,7 @@ use macroquad::prelude::*;
 
 use crate::{
     logic::{Difficulty, Game, Position},
-    ui::{BoardLayout, draw_board, theme},
+    ui::{BoardLayout, Fonts, draw_board, theme},
 };
 
 const DIFFICULTY: Difficulty = Difficulty::Beginner;
@@ -36,10 +36,11 @@ async fn main() {
     game.reveal(Position::new(1, 1));
 
     let layout = layout_for(DIFFICULTY);
+    let fonts = Fonts::load();
 
     loop {
         clear_background(theme::BACKGROUND);
-        draw_board(&game, &layout);
+        draw_board(&game, &layout, &fonts.cell);
         next_frame().await
     }
 }

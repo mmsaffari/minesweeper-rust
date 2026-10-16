@@ -46,7 +46,8 @@ jobs:
           if-no-files-found: error
 
   # Submits the package as an update: a new submission, copied from the last one (listing,
-  # images, age rating), with this package in it. Microsoft then certifies and publishes it.
+  # images, age rating), with this package and packaging/msix/whats-new.txt in it.
+  # Microsoft then certifies and publishes it.
   publish:
     name: Submit to the Microsoft Store
     needs: msix
@@ -59,6 +60,9 @@ jobs:
     env:
       STORE_PRODUCT_ID: 9P25P9L8R8Z3 # Classic Mine Sweeper (the Partner Center URL has it too)
     steps:
+      # For the publish script, whats-new.txt and the version in Cargo.toml.
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           name: minesweeper-msix
@@ -77,9 +81,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
         run: msstore reconfigure --tenantId $env:TENANT_ID --sellerId $env:SELLER_ID --clientId $env:CLIENT_ID --clientSecret $env:CLIENT_SECRET
 
-      - name: Submit the package
+      - name: Submit the package and "What's new"
         run: |
           $msix = Get-ChildItem msix -Filter *.msix | Select-Object -First 1
-          Write-Output "Submitting $($msix.Name) to product $env:STORE_PRODUCT_ID"
-          msstore publish $msix.FullName -id $env:STORE_PRODUCT_ID
-          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed (exit code $LASTEXITCODE)" }
+          ./packaging/msix/publish-store.ps1 -Msix $msix.FullName -ProductId $env:STORE_PRODUCT_ID

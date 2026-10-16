@@ -1,0 +1,10 @@
+# "What's new in this version" on the Microsoft Store page. Sent with every release tag
+# (packaging/msix/publish-store.ps1). Lines starting with # are notes for us, left out.
+#
+# The first other line is the version this text is for. A release of another version goes
+# to the Store with an empty "What's new" (and a warning in the run), never with old text:
+# so before tagging, write the new version and its text here. Plain text, at most 1500
+# characters; blank lines are kept.
+1.4.2
+
+Much lower CPU use: the game now draws a steady 60 frames per second and rests in between, instead of redrawing on every screen refresh. Laptops run cooler and last longer on battery.

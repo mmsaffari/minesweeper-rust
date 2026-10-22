@@ -27,7 +27,7 @@ winresource = "0.1.34"
 # Only for tools in examples/, never part of the game.
 [dev-dependencies]
 fontdue = "0.9.4" # examples/store_art.rs writes text (macroquad already uses it)
-png = "0.17.16"   # examples/store_logos.rs and store_art.rs write PNG files
+png = "0.18.1"   # examples/store_logos.rs and store_art.rs write PNG files
 
 [features]
 # Look for a newer release on GitHub once at startup. The GitHub release build turns it on;

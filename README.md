@@ -86,7 +86,19 @@ cargo fmt                               # format (settings in rustfmt.toml)
 ```
 
 Every push and pull request runs formatting, clippy (`-D warnings`) and the tests on Linux and Windows.
-Pushing a `v*` tag builds the Windows release and publishes it.
+Pushing a `v*` tag builds the Windows release, publishes it on GitHub, and submits it to the
+Microsoft Store.
+
+### Releasing
+
+Needs the [GitHub CLI](https://cli.github.com/) (`sudo apt install gh`, then `gh auth login`).
+First write the Store's "What's new" for the new version in `packaging/msix/whats-new.txt`, then:
+
+```bash
+scripts/release.sh 1.4.3                    # bump, test, push, wait for CI, tag, wait for both releases
+scripts/release.sh 1.4.3 --notes notes.md   # the same, with your own GitHub release notes
+scripts/store-publish.sh                    # submit the newest release to the Store again (after a failure)
+```
 
 ### Layout
 

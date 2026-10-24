@@ -8,3 +8,7 @@
 1.4.2
 
 Much lower CPU use: the game now draws a steady 60 frames per second and rests in between, instead of redrawing on every screen refresh. Laptops run cooler and last longer on battery.
+
+1.4.3
+
+Maintenance update: updated components behind the scenes. The game itself is unchanged.

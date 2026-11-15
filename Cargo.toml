@@ -1,6 +1,6 @@
 [package]
 name = "minesweeper"
-version = "1.4.3"
+version = "1.5.0"
 edition = "2024"
 description = "The classic Minesweeper, rebuilt in Rust with macroquad"
 license = "MIT OR Apache-2.0"
@@ -9,11 +9,11 @@ repository = "https://github.com/mmsaffari/minesweeper-rust"
 [dependencies]
 directories = "6.0.0"
 macroquad = "0.4.16"
-open = { version = "5.4.4", optional = true }
+open = { version = "5.4.5", optional = true }
 rand = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
-ureq = { version = "3.4.2", optional = true }
+ureq = { version = "3.5.2", optional = true }
 
 # `cargo build --release`: slower to compile, but a smaller and faster executable.
 [profile.release]
@@ -26,7 +26,7 @@ winresource = "0.1.34"
 
 # Only for tools in examples/, never part of the game.
 [dev-dependencies]
-fontdue = "0.9.4" # examples/store_art.rs writes text (macroquad already uses it)
+fontdue = "0.9.5" # examples/store_art.rs writes text (macroquad already uses it)
 png = "0.18.1"   # examples/store_logos.rs and store_art.rs write PNG files
 
 [features]

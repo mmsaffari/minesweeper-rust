@@ -31,9 +31,15 @@ $version = (Select-String -Path Cargo.toml -Pattern '^version = "(\d+\.\d+\.\d+)
 $lines = @(Get-Content packaging/msix/whats-new.txt | Where-Object { $_ -notmatch '^\s*#' })
 $first = [array]::FindIndex($lines, [Predicate[string]] { param($line) $line.Trim() -ne '' })
 $textVersion = if ($first -ge 0) { $lines[$first].Trim() } else { '' }
-$text = if ($first -ge 0 -and $first + 1 -lt $lines.Count) {
-    ($lines[($first + 1)..($lines.Count - 1)] -join "`n").Trim()
-} else { '' }
+# The text runs until the next version line: older versions below it are history, not sent.
+$section = [System.Collections.Generic.List[string]]::new()
+if ($first -ge 0) {
+    foreach ($line in $lines | Select-Object -Skip ($first + 1)) {
+        if ($line -match '^\s*\d+\.\d+\.\d+\s*$') { break }
+        $section.Add($line)
+    }
+}
+$text = ($section -join "`n").Trim()
 
 if ($textVersion -ne $version) {
     Write-Output "::warning::whats-new.txt is for version '$textVersion', not ${version}: this release goes to the Store without a ""What's new"" text."

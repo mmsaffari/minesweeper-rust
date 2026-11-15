@@ -92,11 +92,13 @@ Microsoft Store.
 ### Releasing
 
 Needs the [GitHub CLI](https://cli.github.com/) (`sudo apt install gh`, then `gh auth login`).
-First write the Store's "What's new" for the new version in `packaging/msix/whats-new.txt`, then:
+First write the Store's "What's new" for the new version in `packaging/msix/whats-new.txt`
+and commit it. The version can already be set in `Cargo.toml` and `Cargo.lock`, or the
+release script can bump it for you. Then:
 
 ```bash
-scripts/release.sh 1.4.3                    # bump, test, push, wait for CI, tag, wait for both releases
-scripts/release.sh 1.4.3 --notes notes.md   # the same, with your own GitHub release notes
+scripts/release.sh 1.5.0                    # test, push, wait for CI, tag, wait for both releases
+scripts/release.sh 1.5.0 --notes notes.md   # the same, with your own GitHub release notes
 scripts/store-publish.sh                    # submit the newest release to the Store again (after a failure)
 ```
 

@@ -740,4 +740,126 @@ mod tests {
             assert!(game.ended_at.is_some(), "winning must stop the timer");
         }
     }
+
+    /// Game numbers must keep their mines forever: a number someone shared, or wrote down,
+    /// has to be the same game in every later version. The mines come from `rand`
+    /// (`StdRng` and `sample`), and a `rand` update could change them without any other test
+    /// noticing: `the_same_number_is_the_same_game` only compares two games *within* one
+    /// version. So these boards are written out in full. If one fails after a dependency
+    /// update, that update changed the games: don't just paste in the new boards.
+    mod game_numbers {
+        use super::*;
+
+        /// The board as text, one row per line: `*` for a mine, `.` for anything else.
+        fn mine_map(game: &Game) -> Vec<String> {
+            let board = game.board();
+            (0..board.rows())
+                .map(|row| {
+                    (0..board.cols())
+                        .map(|col| {
+                            if board.cell(p(row, col)).is_some_and(|cell| cell.is_mine()) {
+                                '*'
+                            } else {
+                                '.'
+                            }
+                        })
+                        .collect()
+                })
+                .collect()
+        }
+
+        /// The mines of game `number`, after a first click on the top-left cell.
+        fn mines_of(difficulty: Difficulty, number: u32) -> Vec<String> {
+            let mut game = Game::numbered(difficulty, number);
+            game.reveal(p(0, 0));
+            mine_map(&game)
+        }
+
+        #[test]
+        fn beginner_1() {
+            assert_eq!(
+                mines_of(Difficulty::Beginner, 1),
+                [
+                    ".........",
+                    "....**.*.",
+                    "..*......",
+                    ".....*...",
+                    ".........",
+                    "......*..",
+                    "....**.*.",
+                    "........*",
+                    ".........",
+                ]
+            );
+        }
+
+        #[test]
+        fn beginner_135774() {
+            assert_eq!(
+                mines_of(Difficulty::Beginner, 135_774),
+                [
+                    ".....*...",
+                    "..*.*.**.",
+                    "....*....",
+                    "....*....",
+                    "......*..",
+                    ".....*...",
+                    "......*..",
+                    ".........",
+                    ".........",
+                ]
+            );
+        }
+
+        #[test]
+        fn intermediate_482913() {
+            assert_eq!(
+                mines_of(Difficulty::Intermediate, 482_913),
+                [
+                    ".**.....**......",
+                    "....*...........",
+                    "......*....*....",
+                    "..*..........*.*",
+                    "*........*.....*",
+                    ".......*........",
+                    "......*.......*.",
+                    "..*..........*..",
+                    "...*.*..*..***..",
+                    "..*..**.......**",
+                    "......*.....**..",
+                    ".........*..*...",
+                    "........*.......",
+                    "..*.....*....*..",
+                    "..............*.",
+                    ".............*..",
+                ]
+            );
+        }
+
+        /// The highest number there is.
+        #[test]
+        fn expert_999999() {
+            assert_eq!(
+                mines_of(Difficulty::Expert, MAX_GAME_NUMBER),
+                [
+                    "........*.*......*...*.*....*.",
+                    "....*...*..*.**.....*....***..",
+                    "*.........*.*...*...*..*......",
+                    "..***...*.......**..*...*...*.",
+                    "*.**.......*..*.............*.",
+                    "....*....**........*...***....",
+                    "...***..*.*.....*.....***.*...",
+                    "....*........*......*..*......",
+                    ".*............*.....*.......*.",
+                    "....*......**...**....*.......",
+                    "...*.............*.......*....",
+                    ".*.***..*....*..............**",
+                    ".........*.*...*....*..**..*..",
+                    "....*..**.....*...............",
+                    ".....*...*..*..........*......",
+                    "...*.***..*..................*",
+                ]
+            );
+        }
+    }
 }
